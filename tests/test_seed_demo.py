@@ -23,3 +23,11 @@ def test_seed_tidak_menimpa_database_berisi(conn):
     data.add_area(conn, "Milik saya")
     assert seed_demo.seed(conn) is False
     assert [a["name"] for a in data.list_areas(conn)] == ["Milik saya"]
+
+
+def test_seed_tidak_menimpa_database_yang_hanya_berisi_log(conn):
+    # Streak bisa dicatat tanpa pernah membuat area; log seperti ini tidak boleh tertimpa.
+    data.set_daily_log(conn, "2026-11-14", True, True, note="catatan asli")
+    assert seed_demo.seed(conn, today=datetime(2026, 11, 14, 9, 0)) is False
+    assert data.get_daily_log(conn, "2026-11-14")["note"] == "catatan asli"
+    assert data.list_areas(conn) == []
