@@ -101,7 +101,10 @@ def set_daily_log(
     github: bool,
     note: str | None = None,
 ) -> None:
-    """Catat log sebuah tanggal ('YYYY-MM-DD'); jika sudah ada, barisnya diperbarui."""
+    """Catat log sebuah tanggal ('YYYY-MM-DD'); jika sudah ada, barisnya diperbarui.
+
+    note=None membiarkan catatan lama; note="" mengosongkannya.
+    """
     _check_format(log_date, DATE_FORMAT, "log_date", "YYYY-MM-DD")
     conn.execute(
         """
@@ -110,7 +113,7 @@ def set_daily_log(
         ON CONFLICT(log_date) DO UPDATE SET
             claude_code = excluded.claude_code,
             github = excluded.github,
-            note = excluded.note
+            note = COALESCE(excluded.note, daily_log.note)
         """,
         (log_date, int(claude_code), int(github), note),
     )

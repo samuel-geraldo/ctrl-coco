@@ -189,6 +189,20 @@ def test_set_daily_log_tanggal_sama_memperbarui(conn):
     assert rows[0]["note"] == "lengkap"
 
 
+def test_set_daily_log_tanpa_note_mempertahankan_note_lama(conn):
+    data.set_daily_log(conn, "2026-03-10", True, False, note="pagi: belajar QTimer")
+    data.set_daily_log(conn, "2026-03-10", True, True)  # centang GitHub menyusul, tanpa note
+    log = data.get_daily_log(conn, "2026-03-10")
+    assert log["github"] == 1
+    assert log["note"] == "pagi: belajar QTimer"
+
+
+def test_set_daily_log_note_kosong_mengosongkan_note(conn):
+    data.set_daily_log(conn, "2026-03-10", True, False, note="salah tulis")
+    data.set_daily_log(conn, "2026-03-10", True, False, note="")
+    assert data.get_daily_log(conn, "2026-03-10")["note"] == ""
+
+
 @pytest.mark.parametrize("log_date", ["2026-03-10", "2026-12-31", "2028-02-29"])
 def test_set_daily_log_format_benar_diterima(conn, log_date):
     data.set_daily_log(conn, log_date, True, True)
