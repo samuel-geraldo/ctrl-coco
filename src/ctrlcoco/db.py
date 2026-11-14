@@ -1,6 +1,14 @@
+import os
 import sqlite3
+from pathlib import Path
 
-DEFAULT_DB_PATH = "ctrlcoco.db"
+
+def default_db_path() -> Path:
+    """Lokasi database harian: %APPDATA%\\CtrlCoco\\ctrlcoco.db (folder dibuat jika belum ada)."""
+    base = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
+    folder = Path(base) / "CtrlCoco"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / "ctrlcoco.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS area (
@@ -27,9 +35,10 @@ CREATE TABLE IF NOT EXISTS daily_log (
 """
 
 
-def connect(path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
-    """Buka koneksi; file dibuat jika belum ada. Gunakan ":memory:" untuk tes."""
-    conn = sqlite3.connect(path)
+def connect(path: str | os.PathLike | None = None) -> sqlite3.Connection:
+    """Buka koneksi; file dibuat jika belum ada. Tanpa argumen: database di folder AppData.
+    Gunakan ":memory:" untuk tes."""
+    conn = sqlite3.connect(default_db_path() if path is None else path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

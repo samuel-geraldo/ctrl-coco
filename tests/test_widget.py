@@ -38,3 +38,11 @@ def test_widget_tanpa_bingkai_dan_selalu_di_atas(app, conn):
     w = CocoWidget(conn)
     assert w.windowFlags() & Qt.FramelessWindowHint
     assert w.windowFlags() & Qt.WindowStaysOnTopHint
+
+
+def test_widget_latar_transparan_dan_teks_berpanel(app, conn):
+    w = CocoWidget(conn)
+    assert w.testAttribute(Qt.WA_TranslucentBackground)
+    for label in (w.streak_label, w.task_label):
+        assert "color: white" in label.styleSheet()
+        assert "rgba(0, 0, 0" in label.styleSheet()
