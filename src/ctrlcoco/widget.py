@@ -10,6 +10,11 @@ from ctrlcoco.streak import get_streak
 
 COCO_IMAGE = Path(__file__).resolve().parents[2] / "assets" / "coco.png"
 
+TEXT_PANEL_STYLE = (
+    "QLabel { color: white; background-color: rgba(0, 0, 0, 170);"
+    " border-radius: 6px; padding: 4px 8px; }"
+)
+
 
 class CocoWidget(QWidget):
     def __init__(self, conn: sqlite3.Connection):
@@ -18,6 +23,8 @@ class CocoWidget(QWidget):
         self._drag_offset = None
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # Latar jendela tembus pandang; hanya gambar Coco dan panel teks yang terlihat.
+        self.setAttribute(Qt.WA_TranslucentBackground)
 
         self.image_label = QLabel("Coco")
         self.image_label.setAlignment(Qt.AlignCenter)
@@ -27,6 +34,9 @@ class CocoWidget(QWidget):
             )
         self.streak_label = QLabel()
         self.task_label = QLabel()
+        # Panel gelap semi-transparan di belakang teks agar terbaca di latar apa pun.
+        for label in (self.streak_label, self.task_label):
+            label.setStyleSheet(TEXT_PANEL_STYLE)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.image_label)
