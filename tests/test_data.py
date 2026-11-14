@@ -1,8 +1,9 @@
+import sqlite3
 from datetime import datetime
 
 import pytest
 
-from ctrlcoco import data
+from ctrlcoco import data, db
 
 NOW = datetime(2026, 3, 10, 9, 30)
 
@@ -133,6 +134,40 @@ def test_complete_task_dua_kali_tidak_mengubah_completed_at(conn):
 def test_complete_task_tidak_ada_ditolak(conn):
     with pytest.raises(ValueError):
         data.complete_task(conn, 999)
+
+
+# --- tulis yang gagal ---
+
+@pytest.mark.parametrize(
+    "tulis_gagal",
+    [
+        lambda conn: data.add_area(conn, "Kuliah"),       # nama kembar
+        lambda conn: data.add_task(conn, 999, "Tanpa area", now=NOW),
+        lambda conn: data.complete_task(conn, 999),       # task tidak ada
+    ],
+    ids=["add_area", "add_task", "complete_task"],
+)
+def test_tulis_gagal_tidak_meninggalkan_transaksi_terbuka(conn, tulis_gagal):
+    data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError):
+        tulis_gagal(conn)
+    assert not conn.in_transaction
+
+
+def test_tulis_gagal_tidak_mengunci_koneksi_lain(tmp_path):
+    path = tmp_path / "coba.db"
+    pertama = db.connect(path)
+    db.init_db(pertama)
+    data.add_area(pertama, "Kuliah")
+    with pytest.raises(ValueError):
+        data.add_area(pertama, "Kuliah")
+
+    # Koneksi kedua berperan sebagai proses lain. timeout=0: langsung gagal jika terkunci.
+    kedua = sqlite3.connect(path, timeout=0)
+    kedua.execute("INSERT INTO area (name) VALUES ('Lain')")
+    kedua.commit()
+    kedua.close()
+    pertama.close()
 
 
 # --- daily_log ---
