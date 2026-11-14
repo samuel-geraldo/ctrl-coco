@@ -35,3 +35,17 @@ def test_connect_membuat_file_jika_belum_ada(tmp_path):
     db.init_db(c)
     c.close()
     assert path.exists()
+
+
+def test_default_db_path_di_appdata_dan_folder_dibuat(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    path = db.default_db_path()
+    assert path == tmp_path / "CtrlCoco" / "ctrlcoco.db"
+    assert path.parent.is_dir()
+
+
+def test_default_db_path_di_appdata_dan_folder_dibuat(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    path = db.default_db_path()
+    assert path == tmp_path / "CtrlCoco" / "ctrlcoco.db"
+    assert path.parent.is_dir()
