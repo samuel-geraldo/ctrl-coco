@@ -52,6 +52,14 @@ def list_tasks(conn: sqlite3.Connection, status: str | None = None) -> list[sqli
     return conn.execute("SELECT * FROM task WHERE status = ? ORDER BY id", (status,)).fetchall()
 
 
+def get_nearest_task(conn: sqlite3.Connection) -> sqlite3.Row | None:
+    """Task 'todo' dengan deadline paling awal; None jika tidak ada."""
+    return conn.execute(
+        "SELECT * FROM task WHERE status = 'todo' AND deadline IS NOT NULL "
+        "ORDER BY deadline LIMIT 1"
+    ).fetchone()
+
+
 def complete_task(conn: sqlite3.Connection, task_id: int, now: datetime | None = None) -> None:
     """Tandai task selesai dan isi completed_at. Task yang sudah done dibiarkan."""
     cur = conn.execute(
