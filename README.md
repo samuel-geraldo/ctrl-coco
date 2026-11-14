@@ -6,7 +6,7 @@
 
 CtrlCoco adalah widget desktop pribadi dengan karakter Coco, anjing saya, untuk memantau task, deadline, dan streak harian. Coco berubah ekspresi sesuai kondisi hari itu, jadi status pekerjaan terlihat sekilas tanpa membuka aplikasi lain.
 
-**Status:** work in progress (Tahap 3b: widget dilengkapi)
+**Status:** work in progress (Tahap 4b: mesin animasi dengan sprite sementara)
 
 ## Cara menjalankan
 
@@ -37,7 +37,9 @@ set PYTHONPATH=src
 python -m ctrlcoco
 ```
 
-Klik kiri dan seret untuk menggeser, klik kanan lalu "Keluar" untuk menutup. Taruh foto Coco di `assets/coco.png` (opsional); tanpa itu widget menampilkan tulisan "Coco".
+Klik kiri dan seret untuk menggeser, klik kanan lalu "Keluar" untuk menutup.
+
+Gambar Coco mengikuti kondisi saat itu: `waspada`, `senang`, atau `tidur` (aturannya di `docs/keputusan.md`). Frame animasi dibaca dari `assets/sprites/<kondisi>_<n>.png`, misalnya `senang_1.png` dan `senang_2.png`, lalu ditampilkan bergantian menurut nomornya. Kondisi yang belum punya file sprite memakai gambar sementara: lingkaran merah-oranye (waspada), kuning (senang), atau biru keabu-abuan (tidur). Data dibaca ulang dari database tiap 60 detik.
 
 ## Lokasi data dan data contoh
 
