@@ -5,7 +5,7 @@
 - Tidak ada data/detail pekerjaan kantor; magang cukup label umum
 - Tabel MVP: area, task, daily_log
 - Aturan streak: 1 hari valid jika ada aktivitas Claude Code DAN GitHub di hari yang sama; dicatat manual
-- Ekspresi Coco (3 awal): senang (streak valid), waspada (deadline <24 jam), tidur (belum ada log hari ini)
+- Ekspresi Coco (3 awal): waspada, senang, tidur; aturan dan urutannya ada di bagian "Prioritas kondisi Coco" di bawah
 - Alur kerja: 1 fitur = 1 issue = 1 PR; per tahap ada recap pemahaman
 - Tahap: 1 ERD+user story, 2 inti data, 3 widget kosong, 4 animasi, 5 input cepat
 
