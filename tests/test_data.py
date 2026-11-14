@@ -112,3 +112,25 @@ def test_set_daily_log_tanggal_sama_memperbarui(conn):
 
 def test_get_daily_log_tidak_ada(conn):
     assert data.get_daily_log(conn, "2026-03-10") is None
+
+
+# --- task terdekat ---
+
+def test_get_nearest_task_memilih_deadline_paling_awal(conn):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Lusa", deadline="2026-03-12 10:00", now=NOW)
+    data.add_task(conn, area_id, "Besok", deadline="2026-03-11 10:00", now=NOW)
+    assert data.get_nearest_task(conn)["title"] == "Besok"
+
+
+def test_get_nearest_task_abaikan_done_dan_tanpa_deadline(conn):
+    area_id = data.add_area(conn, "Kuliah")
+    selesai = data.add_task(conn, area_id, "Selesai", deadline="2026-03-11 10:00", now=NOW)
+    data.complete_task(conn, selesai, now=NOW)
+    data.add_task(conn, area_id, "Tanpa deadline", now=NOW)
+    data.add_task(conn, area_id, "Aktif", deadline="2026-03-15 10:00", now=NOW)
+    assert data.get_nearest_task(conn)["title"] == "Aktif"
+
+
+def test_get_nearest_task_kosong(conn):
+    assert data.get_nearest_task(conn) is None
