@@ -53,6 +53,50 @@ def test_add_task_dengan_deadline(conn):
     assert data.list_tasks(conn)[0]["deadline"] == "2026-03-12 23:59"
 
 
+@pytest.mark.parametrize("deadline", ["2026-03-12 00:00", "2026-03-12 23:59", "2028-02-29 10:00"])
+def test_add_task_deadline_format_benar_diterima(conn, deadline):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan", deadline=deadline, now=NOW)
+    assert data.list_tasks(conn)[0]["deadline"] == deadline
+
+
+@pytest.mark.parametrize(
+    "deadline",
+    [
+        "2026-03-12",           # tanpa jam
+        "2026-03-12 23:59:00",  # ada detik
+        "2026-03-12T23:59",     # pemisah T
+        "12-03-2026 23:59",     # urutan hari-bulan-tahun
+        "2026/03/12 23:59",     # garis miring
+        "2026-3-12 9:00",       # tanpa nol di depan
+        "besok",
+        "",
+    ],
+)
+def test_add_task_deadline_format_salah_ditolak(conn, deadline):
+    area_id = data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="YYYY-MM-DD HH:MM"):
+        data.add_task(conn, area_id, "Laporan", deadline=deadline, now=NOW)
+    assert data.list_tasks(conn) == []
+
+
+@pytest.mark.parametrize(
+    "deadline",
+    [
+        "2026-02-30 10:00",  # Februari tidak punya tanggal 30
+        "2027-02-29 10:00",  # 2027 bukan tahun kabisat
+        "2026-13-01 10:00",  # bulan 13
+        "2026-03-12 24:00",  # jam 24
+        "2026-03-12 10:60",  # menit 60
+    ],
+)
+def test_add_task_deadline_mustahil_ditolak(conn, deadline):
+    area_id = data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="deadline"):
+        data.add_task(conn, area_id, "Laporan", deadline=deadline, now=NOW)
+    assert data.list_tasks(conn) == []
+
+
 def test_add_task_area_tidak_ada_ditolak(conn):
     with pytest.raises(ValueError):
         data.add_task(conn, 999, "Tanpa area", now=NOW)
@@ -108,6 +152,47 @@ def test_set_daily_log_tanggal_sama_memperbarui(conn):
     assert len(rows) == 1
     assert rows[0]["github"] == 1
     assert rows[0]["note"] == "lengkap"
+
+
+@pytest.mark.parametrize("log_date", ["2026-03-10", "2026-12-31", "2028-02-29"])
+def test_set_daily_log_format_benar_diterima(conn, log_date):
+    data.set_daily_log(conn, log_date, True, True)
+    assert data.get_daily_log(conn, log_date) is not None
+
+
+@pytest.mark.parametrize(
+    "log_date",
+    [
+        "10-03-2026",        # urutan hari-bulan-tahun
+        "2026/03/10",        # garis miring
+        "2026-3-5",          # tanpa nol di depan
+        "20260310",          # tanpa pemisah
+        "2026-03-10 09:30",  # ada jam
+        " 2026-03-10",       # ada spasi
+        "kemarin",
+        "",
+    ],
+)
+def test_set_daily_log_format_salah_ditolak(conn, log_date):
+    with pytest.raises(ValueError, match="YYYY-MM-DD"):
+        data.set_daily_log(conn, log_date, True, True)
+    assert conn.execute("SELECT COUNT(*) FROM daily_log").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
+    "log_date",
+    [
+        "2026-02-30",  # Februari tidak punya tanggal 30
+        "2027-02-29",  # 2027 bukan tahun kabisat
+        "2026-04-31",  # April hanya 30 hari
+        "2026-13-01",  # bulan 13
+        "2026-00-10",  # bulan 0
+    ],
+)
+def test_set_daily_log_tanggal_mustahil_ditolak(conn, log_date):
+    with pytest.raises(ValueError, match="log_date"):
+        data.set_daily_log(conn, log_date, True, True)
+    assert conn.execute("SELECT COUNT(*) FROM daily_log").fetchone()[0] == 0
 
 
 def test_get_daily_log_tidak_ada(conn):
