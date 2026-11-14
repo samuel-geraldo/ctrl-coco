@@ -1,4 +1,4 @@
-"""Isi database dengan data contoh generik (kuliah, portofolio) untuk mencoba widget.
+r"""Isi database dengan data contoh generik (kuliah, portofolio) untuk mencoba widget.
 
 Pakai:
     $env:PYTHONPATH = "src"
