@@ -1,11 +1,26 @@
 import sqlite3
 from datetime import datetime
 
+DATE_FORMAT = "%Y-%m-%d"
 TIME_FORMAT = "%Y-%m-%d %H:%M"
 
 
 def _now_text(now: datetime | None) -> str:
     return (now or datetime.now()).strftime(TIME_FORMAT)
+
+
+def _check_format(value: str, fmt: str, nama: str, contoh: str) -> None:
+    """Tolak teks tanggal yang formatnya salah atau tanggalnya tidak ada di kalender."""
+    try:
+        # Teks diubah jadi tanggal lalu ditulis ulang. Hasilnya harus sama persis,
+        # supaya "2026-3-5" (tanpa nol di depan) ikut ditolak.
+        cocok = datetime.strptime(value, fmt).strftime(fmt) == value
+    except ValueError:
+        cocok = False
+    if not cocok:
+        raise ValueError(
+            f"{nama} harus berformat {contoh} dan tanggalnya harus ada di kalender: {value!r}"
+        )
 
 
 # --- area ---
@@ -34,6 +49,8 @@ def add_task(
     now: datetime | None = None,
 ) -> int:
     """Tambah task ke sebuah area. deadline opsional, format 'YYYY-MM-DD HH:MM'."""
+    if deadline is not None:
+        _check_format(deadline, TIME_FORMAT, "deadline", "YYYY-MM-DD HH:MM")
     try:
         cur = conn.execute(
             "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
@@ -83,6 +100,7 @@ def set_daily_log(
     note: str | None = None,
 ) -> None:
     """Catat log sebuah tanggal ('YYYY-MM-DD'); jika sudah ada, barisnya diperbarui."""
+    _check_format(log_date, DATE_FORMAT, "log_date", "YYYY-MM-DD")
     conn.execute(
         """
         INSERT INTO daily_log (log_date, claude_code, github, note)

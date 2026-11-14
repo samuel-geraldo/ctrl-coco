@@ -1,5 +1,7 @@
 # CtrlCoco
 
+[![tests](https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml)
+
 *Ctrl your day, with Coco.*
 
 CtrlCoco adalah widget desktop pribadi dengan karakter Coco, anjing saya, untuk memantau task, deadline, dan streak harian. Coco berubah ekspresi sesuai kondisi hari itu, jadi status pekerjaan terlihat sekilas tanpa membuka aplikasi lain.
@@ -8,7 +10,7 @@ CtrlCoco adalah widget desktop pribadi dengan karakter Coco, anjing saya, untuk 
 
 ## Cara menjalankan
 
-Butuh Python 3.10 atau lebih baru. Dari folder proyek (PowerShell):
+Butuh Python 3.10 atau lebih baru. Dari folder proyek (perintahnya sama di PowerShell dan CMD):
 
 ```powershell
 py -m venv .venv
@@ -21,8 +23,17 @@ Kode ada di `src/ctrlcoco/`, tes di `tests/`. File database (`*.db`) dibuat otom
 
 ## Menjalankan widget
 
+PowerShell:
+
 ```powershell
 $env:PYTHONPATH = "src"
+python -m ctrlcoco
+```
+
+CMD:
+
+```bat
+set PYTHONPATH=src
 python -m ctrlcoco
 ```
 
@@ -32,10 +43,20 @@ Klik kiri dan seret untuk menggeser, klik kanan lalu "Keluar" untuk menutup. Tar
 
 Database harian disimpan di `%APPDATA%\CtrlCoco\ctrlcoco.db` (folder dibuat otomatis), jadi tidak bergantung pada folder tempat widget dijalankan.
 
-Untuk mencoba widget dengan data contoh (kuliah, portofolio) tanpa menyentuh database harian:
+Untuk mencoba widget dengan data contoh (kuliah, portofolio) tanpa menyentuh database harian.
+
+PowerShell:
 
 ```powershell
 $env:PYTHONPATH = "src"
 python scripts/seed_demo.py
 python -m ctrlcoco --db "$env:APPDATA\CtrlCoco\demo.db"
+```
+
+CMD:
+
+```bat
+set PYTHONPATH=src
+python scripts/seed_demo.py
+python -m ctrlcoco --db "%APPDATA%\CtrlCoco\demo.db"
 ```
