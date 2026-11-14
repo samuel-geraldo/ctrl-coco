@@ -23,7 +23,7 @@ class CocoWidget(QWidget):
         self.image_label.setAlignment(Qt.AlignCenter)
         if COCO_IMAGE.exists():
             self.image_label.setPixmap(
-                QPixmap(str(COCO_IMAGE)).scaledToWidth(120, Qt.SmoothTransformation)
+                QPixmap(str(COCO_IMAGE)).scaledToWidth(160, Qt.FastTransformation)
             )
         self.streak_label = QLabel()
         self.task_label = QLabel()
