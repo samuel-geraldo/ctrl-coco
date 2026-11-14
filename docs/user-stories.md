@@ -31,9 +31,9 @@ Format: "Sebagai pengguna, saya ingin ..., supaya ...", diikuti kriteria selesai
 
 7. Sebagai pengguna, saya ingin ekspresi Coco berubah sesuai kondisi, supaya saya langsung tahu keadaan hari ini.
    - Senang: hari ini valid (Claude Code dan GitHub tercatat).
-   - Waspada: ada task `todo` dengan deadline kurang dari 24 jam lagi.
-   - Tidur: belum ada log hari ini.
-   - Urutan prioritas jika lebih dari satu kondisi berlaku diputuskan di awal Tahap 4.
+   - Waspada: ada task `todo` dengan deadline sudah lewat atau kurang dari 24 jam lagi.
+   - Tidur: belum ada log hari ini, atau log baru satu aktivitas.
+   - Urutan prioritas jika lebih dari satu kondisi berlaku: waspada, lalu senang, lalu tidur (rincian di `docs/keputusan.md`).
 
 ## Tahap 5: Input cepat
 
