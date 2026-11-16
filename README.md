@@ -45,7 +45,7 @@ Gambar Coco saat ini masih **sementara** (lingkaran berwarna per kondisi). Pixel
 
 ## Cara menjalankan
 
-Butuh Python 3.10 atau lebih baru (dikembangkan di 3.14) dan Windows.
+Butuh Python 3.11 atau lebih baru (dikembangkan dan diuji di 3.14) dan Windows.
 
 CMD:
 
