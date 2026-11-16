@@ -1,8 +1,9 @@
+import sqlite3
 from datetime import datetime
 
 import pytest
 
-from ctrlcoco import data
+from ctrlcoco import data, db
 
 NOW = datetime(2026, 3, 10, 9, 30)
 
@@ -135,6 +136,40 @@ def test_complete_task_tidak_ada_ditolak(conn):
         data.complete_task(conn, 999)
 
 
+# --- tulis yang gagal ---
+
+@pytest.mark.parametrize(
+    "tulis_gagal",
+    [
+        lambda conn: data.add_area(conn, "Kuliah"),       # nama kembar
+        lambda conn: data.add_task(conn, 999, "Tanpa area", now=NOW),
+        lambda conn: data.complete_task(conn, 999),       # task tidak ada
+    ],
+    ids=["add_area", "add_task", "complete_task"],
+)
+def test_tulis_gagal_tidak_meninggalkan_transaksi_terbuka(conn, tulis_gagal):
+    data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError):
+        tulis_gagal(conn)
+    assert not conn.in_transaction
+
+
+def test_tulis_gagal_tidak_mengunci_koneksi_lain(tmp_path):
+    path = tmp_path / "coba.db"
+    pertama = db.connect(path)
+    db.init_db(pertama)
+    data.add_area(pertama, "Kuliah")
+    with pytest.raises(ValueError):
+        data.add_area(pertama, "Kuliah")
+
+    # Koneksi kedua berperan sebagai proses lain. timeout=0: langsung gagal jika terkunci.
+    kedua = sqlite3.connect(path, timeout=0)
+    kedua.execute("INSERT INTO area (name) VALUES ('Lain')")
+    kedua.commit()
+    kedua.close()
+    pertama.close()
+
+
 # --- daily_log ---
 
 def test_set_daily_log_baru(conn):
@@ -152,6 +187,20 @@ def test_set_daily_log_tanggal_sama_memperbarui(conn):
     assert len(rows) == 1
     assert rows[0]["github"] == 1
     assert rows[0]["note"] == "lengkap"
+
+
+def test_set_daily_log_tanpa_note_mempertahankan_note_lama(conn):
+    data.set_daily_log(conn, "2026-03-10", True, False, note="pagi: belajar QTimer")
+    data.set_daily_log(conn, "2026-03-10", True, True)  # centang GitHub menyusul, tanpa note
+    log = data.get_daily_log(conn, "2026-03-10")
+    assert log["github"] == 1
+    assert log["note"] == "pagi: belajar QTimer"
+
+
+def test_set_daily_log_note_kosong_mengosongkan_note(conn):
+    data.set_daily_log(conn, "2026-03-10", True, False, note="salah tulis")
+    data.set_daily_log(conn, "2026-03-10", True, False, note="")
+    assert data.get_daily_log(conn, "2026-03-10")["note"] == ""
 
 
 @pytest.mark.parametrize("log_date", ["2026-03-10", "2026-12-31", "2028-02-29"])

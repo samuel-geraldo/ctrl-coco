@@ -27,11 +27,13 @@ def _check_format(value: str, fmt: str, nama: str, contoh: str) -> None:
 
 def add_area(conn: sqlite3.Connection, name: str) -> int:
     """Tambah area; nama harus unik. Mengembalikan id area baru."""
-    try:
-        cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
-    except sqlite3.IntegrityError:
-        raise ValueError(f"Area sudah ada: {name}") from None
-    conn.commit()
+    # `with conn:` menyimpan (commit) jika blok selesai, atau membatalkan (rollback)
+    # jika ada error, sehingga transaksi tidak pernah dibiarkan terbuka.
+    with conn:
+        try:
+            cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Area sudah ada: {name}") from None
     return cur.lastrowid
 
 
@@ -51,14 +53,14 @@ def add_task(
     """Tambah task ke sebuah area. deadline opsional, format 'YYYY-MM-DD HH:MM'."""
     if deadline is not None:
         _check_format(deadline, TIME_FORMAT, "deadline", "YYYY-MM-DD HH:MM")
-    try:
-        cur = conn.execute(
-            "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
-            (area_id, title, deadline, _now_text(now)),
-        )
-    except sqlite3.IntegrityError:
-        raise ValueError(f"Area tidak ditemukan: {area_id}") from None
-    conn.commit()
+    with conn:
+        try:
+            cur = conn.execute(
+                "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
+                (area_id, title, deadline, _now_text(now)),
+            )
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Area tidak ditemukan: {area_id}") from None
     return cur.lastrowid
 
 
@@ -79,15 +81,15 @@ def get_nearest_task(conn: sqlite3.Connection) -> sqlite3.Row | None:
 
 def complete_task(conn: sqlite3.Connection, task_id: int, now: datetime | None = None) -> None:
     """Tandai task selesai dan isi completed_at. Task yang sudah done dibiarkan."""
-    cur = conn.execute(
-        "UPDATE task SET status = 'done', completed_at = ? WHERE id = ? AND status = 'todo'",
-        (_now_text(now), task_id),
-    )
-    if cur.rowcount == 0:
-        exists = conn.execute("SELECT 1 FROM task WHERE id = ?", (task_id,)).fetchone()
-        if not exists:
-            raise ValueError(f"Task tidak ditemukan: {task_id}")
-    conn.commit()
+    with conn:
+        cur = conn.execute(
+            "UPDATE task SET status = 'done', completed_at = ? WHERE id = ? AND status = 'todo'",
+            (_now_text(now), task_id),
+        )
+        if cur.rowcount == 0:
+            exists = conn.execute("SELECT 1 FROM task WHERE id = ?", (task_id,)).fetchone()
+            if not exists:
+                raise ValueError(f"Task tidak ditemukan: {task_id}")
 
 
 # --- daily_log ---
@@ -99,7 +101,10 @@ def set_daily_log(
     github: bool,
     note: str | None = None,
 ) -> None:
-    """Catat log sebuah tanggal ('YYYY-MM-DD'); jika sudah ada, barisnya diperbarui."""
+    """Catat log sebuah tanggal ('YYYY-MM-DD'); jika sudah ada, barisnya diperbarui.
+
+    note=None membiarkan catatan lama; note="" mengosongkannya.
+    """
     _check_format(log_date, DATE_FORMAT, "log_date", "YYYY-MM-DD")
     conn.execute(
         """
@@ -108,7 +113,7 @@ def set_daily_log(
         ON CONFLICT(log_date) DO UPDATE SET
             claude_code = excluded.claude_code,
             github = excluded.github,
-            note = excluded.note
+            note = COALESCE(excluded.note, daily_log.note)
         """,
         (log_date, int(claude_code), int(github), note),
     )
