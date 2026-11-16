@@ -5,6 +5,9 @@ from ctrlcoco.data import TIME_FORMAT, get_daily_log, get_nearest_task
 
 BATAS_WASPADA = timedelta(hours=24)
 
+# Semua kondisi yang bisa dikembalikan get_mood.
+MOODS = ("waspada", "senang", "tidur")
+
 
 def get_mood(conn: sqlite3.Connection, now: datetime) -> str:
     """Kondisi Coco pada waktu `now`: "waspada", "senang", atau "tidur".
