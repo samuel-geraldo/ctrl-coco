@@ -1,3 +1,5 @@
+import inspect
+import re
 import sqlite3
 from datetime import datetime
 
@@ -168,6 +170,87 @@ def test_tulis_gagal_tidak_mengunci_koneksi_lain(tmp_path):
     kedua.commit()
     kedua.close()
     pertama.close()
+
+
+# --- pesan error sesuai penyebab ---
+
+def test_add_task_pesan_error_sesuai_penyebab(conn):
+    area_id = data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="Area tidak ditemukan: 999"):
+        data.add_task(conn, 999, "Tugas", now=NOW)
+    with pytest.raises(ValueError, match="Judul task wajib diisi"):
+        data.add_task(conn, area_id, None, now=NOW)
+    # Penyebab yang tidak dikenal (area_id kosong) tidak boleh disamarkan jadi "area tidak ditemukan".
+    with pytest.raises(sqlite3.IntegrityError):
+        data.add_task(conn, None, "Tugas", now=NOW)
+    assert data.list_tasks(conn) == []
+    assert not conn.in_transaction
+
+
+def test_add_area_pesan_error_sesuai_penyebab(conn):
+    data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="Area sudah ada: Kuliah"):
+        data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="Nama area wajib diisi"):
+        data.add_area(conn, None)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+
+
+def test_pelanggaran_check_tidak_disamarkan_jadi_pesan_area(conn):
+    """Sejak ada CHECK di skema, jenis pelanggaran baru bisa muncul; pesannya harus jujur."""
+    area_id = data.add_area(conn, "Kuliah")
+    with pytest.raises(sqlite3.IntegrityError) as err:
+        with conn:
+            conn.execute(
+                "INSERT INTO task (area_id, title, status, created_at) VALUES (?, 'x', 'selesai', 'x')",
+                (area_id,),
+            )
+    assert err.value.sqlite_errorname == "SQLITE_CONSTRAINT_CHECK"
+
+
+# Tiap fungsi yang menulis ke database, dipanggil dengan argumen yang valid.
+PENULIS = {
+    "add_area": lambda c: data.add_area(c, "Baru"),
+    "add_task": lambda c: data.add_task(c, 1, "Tugas baru", now=NOW),
+    "complete_task": lambda c: data.complete_task(c, 1, now=NOW),
+    "set_daily_log": lambda c: data.set_daily_log(c, "2026-03-10", True, True),
+}
+
+
+@pytest.mark.parametrize("nama", sorted(PENULIS))
+def test_tulis_saat_database_terkunci_tidak_meninggalkan_transaksi(tmp_path, nama):
+    path = tmp_path / "kunci.db"
+    c = db.connect(path)
+    db.init_db(c)
+    area_id = data.add_area(c, "Kuliah")
+    data.add_task(c, area_id, "Tugas", now=NOW)
+    c.execute("PRAGMA busy_timeout = 0")  # langsung gagal jika terkunci, jangan menunggu
+
+    # Koneksi lain berperan sebagai proses lain yang sedang menulis ke database yang sama.
+    lain = sqlite3.connect(path, isolation_level=None)
+    lain.execute("BEGIN EXCLUSIVE")
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            PENULIS[nama](c)
+        assert not c.in_transaction
+    finally:
+        lain.rollback()
+        lain.close()
+        c.close()
+
+
+def test_semua_fungsi_tulis_di_data_py_ikut_dites_saat_terkunci():
+    """Penjaga: fungsi tulis baru di data.py harus ditambahkan ke PENULIS di atas."""
+    penulis = {
+        nama
+        for nama, fungsi in inspect.getmembers(data, inspect.isfunction)
+        if fungsi.__module__ == data.__name__
+        and re.search(r"\b(INSERT|UPDATE|DELETE)\b", inspect.getsource(fungsi))
+    }
+    assert penulis == set(PENULIS), (
+        "Fungsi tulis di data.py tidak sama dengan daftar PENULIS di tes ini. "
+        "Tambahkan fungsi baru ke PENULIS, dan pakai `with conn:` di dalamnya."
+    )
 
 
 # --- daily_log ---

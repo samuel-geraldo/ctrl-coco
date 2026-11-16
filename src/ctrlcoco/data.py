@@ -29,11 +29,17 @@ def add_area(conn: sqlite3.Connection, name: str) -> int:
     """Tambah area; nama harus unik. Mengembalikan id area baru."""
     # `with conn:` menyimpan (commit) jika blok selesai, atau membatalkan (rollback)
     # jika ada error, sehingga transaksi tidak pernah dibiarkan terbuka.
+    if name is None:
+        raise ValueError("Nama area wajib diisi")
     with conn:
         try:
             cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
-        except sqlite3.IntegrityError:
-            raise ValueError(f"Area sudah ada: {name}") from None
+        except sqlite3.IntegrityError as e:
+            # Pesan dipilih dari penyebab sebenarnya. Penyebab yang tidak dikenal
+            # diteruskan apa adanya, bukan disamarkan dengan pesan yang keliru.
+            if e.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE":
+                raise ValueError(f"Area sudah ada: {name}") from None
+            raise
     return cur.lastrowid
 
 
@@ -51,6 +57,8 @@ def add_task(
     now: datetime | None = None,
 ) -> int:
     """Tambah task ke sebuah area. deadline opsional, format 'YYYY-MM-DD HH:MM'."""
+    if title is None:
+        raise ValueError("Judul task wajib diisi")
     if deadline is not None:
         _check_format(deadline, TIME_FORMAT, "deadline", "YYYY-MM-DD HH:MM")
     with conn:
@@ -59,8 +67,12 @@ def add_task(
                 "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
                 (area_id, title, deadline, _now_text(now)),
             )
-        except sqlite3.IntegrityError:
-            raise ValueError(f"Area tidak ditemukan: {area_id}") from None
+        except sqlite3.IntegrityError as e:
+            # Hanya pelanggaran foreign key yang berarti "area tidak ada". Penyebab lain
+            # (misalnya area_id kosong) diteruskan apa adanya, bukan diberi pesan keliru.
+            if e.sqlite_errorname == "SQLITE_CONSTRAINT_FOREIGNKEY":
+                raise ValueError(f"Area tidak ditemukan: {area_id}") from None
+            raise
     return cur.lastrowid
 
 
@@ -106,18 +118,20 @@ def set_daily_log(
     note=None membiarkan catatan lama; note="" mengosongkannya.
     """
     _check_format(log_date, DATE_FORMAT, "log_date", "YYYY-MM-DD")
-    conn.execute(
-        """
-        INSERT INTO daily_log (log_date, claude_code, github, note)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(log_date) DO UPDATE SET
-            claude_code = excluded.claude_code,
-            github = excluded.github,
-            note = COALESCE(excluded.note, daily_log.note)
-        """,
-        (log_date, int(claude_code), int(github), note),
-    )
-    conn.commit()
+    # `with conn:` seperti di fungsi tulis lain: commit jika berhasil, rollback jika gagal
+    # (misalnya database dikunci proses lain), sehingga transaksi tidak tertinggal terbuka.
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO daily_log (log_date, claude_code, github, note)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(log_date) DO UPDATE SET
+                claude_code = excluded.claude_code,
+                github = excluded.github,
+                note = COALESCE(excluded.note, daily_log.note)
+            """,
+            (log_date, int(claude_code), int(github), note),
+        )
 
 
 def get_daily_log(conn: sqlite3.Connection, log_date: str) -> sqlite3.Row | None:
