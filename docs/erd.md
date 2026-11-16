@@ -44,7 +44,7 @@ Satu pekerjaan yang ingin dipantau.
 | id | INTEGER | PK, otomatis bertambah |
 | area_id | INTEGER | FK ke `area.id`, wajib |
 | title | TEXT | wajib |
-| deadline | TEXT | boleh kosong; format `YYYY-MM-DD HH:MM` |
+| deadline | TEXT | boleh kosong; format `YYYY-MM-DD HH:MM`, dijaga `CHECK` |
 | status | TEXT | `todo` atau `done`, default `todo` |
 | created_at | TEXT | waktu dibuat |
 | completed_at | TEXT | diisi saat status jadi `done` |
@@ -54,7 +54,7 @@ Satu baris untuk satu hari, diisi manual.
 
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| log_date | TEXT | PK, format `YYYY-MM-DD`; satu hari hanya satu baris |
+| log_date | TEXT | PK, format `YYYY-MM-DD`, dijaga `CHECK`; satu hari hanya satu baris |
 | claude_code | INTEGER | 1 jika hari itu ada aktivitas Claude Code, 0 jika tidak |
 | github | INTEGER | 1 jika hari itu ada aktivitas GitHub, 0 jika tidak |
 | note | TEXT | catatan bebas, boleh kosong |
@@ -87,3 +87,5 @@ ORDER BY log_date DESC;
 - Datanya kecil (sekitar 365 baris per tahun), jadi menghitung ulang setiap kali tidak terasa berat.
 
 Catatan tipe data: SQLite tidak punya `BOOLEAN` dan `DATE`, jadi ya/tidak disimpan sebagai `INTEGER` 0/1, dan tanggal/waktu sebagai `TEXT` berformat ISO supaya urutannya tetap benar.
+
+Format tanggal dijaga di database, bukan hanya di kode: `CHECK` pada `task.deadline` dan `daily_log.log_date` menolak teks yang formatnya salah atau tanggalnya tidak ada di kalender (`2026-3-5`, `2026-02-30`, jam `24:00`), dari jalur mana pun, termasuk edit manual lewat alat seperti DB Browser for SQLite. Dengan begitu kode yang membaca (`get_streak`, `get_mood`) boleh mengandalkan formatnya. Versi skema disimpan di `PRAGMA user_version` (sekarang 1); `init_db` membangun ulang tabel database lama sekali saja, dan berhenti dengan pesan yang menyebut baris rusak jika ada.
