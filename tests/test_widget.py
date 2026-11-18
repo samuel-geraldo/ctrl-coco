@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -166,3 +167,59 @@ def test_timer_refresh_berjalan_dan_membaca_ulang_data(app, conn, sprite_dir):
     w.refresh_timer.timeout.emit()  # satu detak timer, tanpa menunggu
     assert w.streak_label.text() == "Streak: 1 hari"
     assert w.mood == "senang"
+
+
+# --- error database saat refresh ---
+
+class KoneksiBisaGagal:
+    """Pembungkus koneksi: selama `error` terisi, setiap query melempar error itu."""
+
+    def __init__(self, conn):
+        self._conn = conn
+        self.error = None
+
+    def execute(self, *args, **kwargs):
+        if self.error is not None:
+            raise self.error
+        return self._conn.execute(*args, **kwargs)
+
+
+def test_refresh_gagal_menampilkan_tanda_lalu_pulih(app, conn, sprite_dir):
+    data.set_daily_log(conn, date.today().isoformat(), True, True)
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+    koneksi = KoneksiBisaGagal(conn)
+    w = CocoWidget(koneksi, sprite_dir=sprite_dir)
+    assert w.streak_label.text() == "Streak: 1 hari"
+
+    koneksi.error = sqlite3.OperationalError("database is locked")
+    w.refresh_timer.timeout.emit()
+    # Angka lama tidak boleh tetap tampil seolah masih benar.
+    assert "gagal dimuat" in w.streak_label.text()
+    assert "Streak" not in w.streak_label.text()
+    assert w.task_label.text() == ""
+    assert w.refresh_timer.isActive()
+
+    koneksi.error = None
+    w.refresh_timer.timeout.emit()
+    assert w.streak_label.text() == "Streak: 1 hari"
+    assert "Laporan" in w.task_label.text()
+
+
+def test_refresh_pertama_gagal_coco_tidur(app, conn, sprite_dir):
+    koneksi = KoneksiBisaGagal(conn)
+    koneksi.error = sqlite3.OperationalError("database is locked")
+    w = CocoWidget(koneksi, sprite_dir=sprite_dir)
+    assert "gagal dimuat" in w.streak_label.text()
+    assert w.mood == "tidur"
+    assert warna_gambar(w) == WARNA_SPRITE["tidur"][0]
+    w.next_frame()  # timer animasi tidak boleh crash
+    assert warna_gambar(w) == WARNA_SPRITE["tidur"][1]
+
+
+def test_error_selain_sqlite_tetap_naik(app, conn):
+    koneksi = KoneksiBisaGagal(conn)
+    w = CocoWidget(koneksi)
+    koneksi.error = RuntimeError("bug di kode, bukan masalah database")
+    with pytest.raises(RuntimeError):
+        w.refresh()
