@@ -2,8 +2,9 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtTest import QTest
 
 from ctrlcoco import data
 from ctrlcoco.mood import MOODS
@@ -223,3 +224,15 @@ def test_error_selain_sqlite_tetap_naik(app, conn):
     koneksi.error = RuntimeError("bug di kode, bukan masalah database")
     with pytest.raises(RuntimeError):
         w.refresh()
+
+
+# --- interaksi mouse ---
+
+def test_seret_memindahkan_jendela(app, conn):
+    w = CocoWidget(conn)
+    w.move(100, 100)
+    w.show()
+    QTest.mousePress(w, Qt.LeftButton, pos=QPoint(10, 10))
+    QTest.mouseMove(w, QPoint(60, 40))  # 50 ke kanan, 30 ke bawah
+    QTest.mouseRelease(w, Qt.LeftButton, pos=QPoint(60, 40))
+    assert w.pos() == QPoint(150, 130)
