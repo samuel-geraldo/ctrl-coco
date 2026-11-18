@@ -63,14 +63,27 @@ class CocoWidget(QWidget):
     def refresh(self, now: datetime | None = None) -> None:
         """Baca ulang data dari database, lalu perbarui teks dan kondisi Coco."""
         now = now or datetime.now()
-        self.streak_label.setText(f"Streak: {get_streak(self.conn, now.date())} hari")
-        task = get_nearest_task(self.conn)
-        if task is None:
-            self.task_label.setText("Tidak ada task berdeadline")
+        # Baca semua data dulu, baru ubah tampilan: jika satu query gagal, tidak ada
+        # label yang sempat berisi campuran data baru dan lama.
+        try:
+            streak = get_streak(self.conn, now.date())
+            task = get_nearest_task(self.conn)
+            mood = get_mood(self.conn, now)
+        except sqlite3.Error:
+            # Misalnya database terkunci. Angka lama tidak ditampilkan seolah masih
+            # benar. Timer refresh tetap berjalan, jadi detak berikutnya mencoba lagi.
+            self.streak_label.setText("Data gagal dimuat")
+            self.task_label.setText("")
+            if self.mood is not None:
+                return  # Coco tetap di kondisi terakhir
+            mood = "tidur"  # refresh pertama gagal: next_frame tetap butuh kondisi
         else:
-            self.task_label.setText(f"{task['title']}\n{task['deadline']}")
+            self.streak_label.setText(f"Streak: {streak} hari")
+            if task is None:
+                self.task_label.setText("Tidak ada task berdeadline")
+            else:
+                self.task_label.setText(f"{task['title']}\n{task['deadline']}")
 
-        mood = get_mood(self.conn, now)
         if mood != self.mood:
             # Kondisi berganti: animasi kondisi baru mulai dari frame pertama.
             self.mood = mood
