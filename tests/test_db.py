@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 import pytest
@@ -42,6 +43,15 @@ def test_default_db_path_di_appdata_dan_folder_dibuat(tmp_path, monkeypatch):
     path = db.default_db_path()
     assert path == tmp_path / "CtrlCoco" / "ctrlcoco.db"
     assert path.parent.is_dir()
+
+
+def test_connect_tanpa_argumen_memakai_folder_appdata(tmp_path, monkeypatch):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    c = db.connect()
+    # Tanya SQLite sendiri file mana yang dibuka koneksi ini.
+    dibuka = c.execute("PRAGMA database_list").fetchone()["file"]
+    c.close()
+    assert os.path.samefile(dibuka, tmp_path / "CtrlCoco" / "ctrlcoco.db")
 
 
 # --- CHECK pada kolom tanggal: database menolak teks berformat salah dari jalur mana pun ---

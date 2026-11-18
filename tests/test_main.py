@@ -25,7 +25,8 @@ def exec_dipanggil(monkeypatch):
 
 @pytest.fixture
 def koneksi_dibuka(monkeypatch):
-    """Catat setiap koneksi yang dibuka main, supaya bisa dicek sudah ditutup."""
+    """Catat setiap koneksi yang dibuka main, supaya bisa dicek sudah ditutup.
+    Setelah tes selesai semuanya ditutup, supaya file di tmp_path bisa dihapus."""
     dibuka = []
     connect_asli = db.connect
 
@@ -35,7 +36,44 @@ def koneksi_dibuka(monkeypatch):
         return conn
 
     monkeypatch.setattr(db, "connect", connect)
-    return dibuka
+    yield dibuka
+    for conn in dibuka:
+        conn.close()
+
+
+def tabel_di(path):
+    """Nama tabel buatan aplikasi di file database `path`."""
+    c = sqlite3.connect(path)
+    nama = {r[0] for r in c.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    )}
+    c.close()
+    return nama
+
+
+# --- jalur normal ---
+
+def test_main_membuat_database_baru_dengan_tiga_tabel(app, tmp_path, monkeypatch, pesan,
+                                                      exec_dipanggil, koneksi_dibuka):
+    monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))  # pagar: jangan sentuh AppData asli
+    path = tmp_path / "baru.db"
+    assert titik_masuk.main(["--db", str(path)]) == 0
+    assert exec_dipanggil == [True]
+    assert pesan == []
+    assert tabel_di(path) == {"area", "task", "daily_log"}
+    assert not (tmp_path / "appdata" / "CtrlCoco" / "ctrlcoco.db").exists()
+
+
+def test_main_tanpa_db_memakai_folder_appdata(app, tmp_path, monkeypatch, pesan,
+                                             exec_dipanggil, koneksi_dibuka):
+    monkeypatch.setenv("APPDATA", str(tmp_path))
+    assert titik_masuk.main([]) == 0
+    assert exec_dipanggil == [True]
+    assert pesan == []
+    assert tabel_di(tmp_path / "CtrlCoco" / "ctrlcoco.db") == {"area", "task", "daily_log"}
+
+
+# --- jalur gagal ---
 
 
 def jalankan_dan_harus_gagal(path, pesan, exec_dipanggil):
