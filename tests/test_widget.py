@@ -3,10 +3,12 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QColor, QContextMenuEvent, QPixmap
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication, QMenu
 
 from ctrlcoco import data
+from ctrlcoco import widget as widget_module
 from ctrlcoco.mood import MOODS
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.widget import ANIMATION_INTERVAL_MS, REFRESH_INTERVAL_MS, CocoWidget
@@ -236,3 +238,28 @@ def test_seret_memindahkan_jendela(app, conn):
     QTest.mouseMove(w, QPoint(60, 40))  # 50 ke kanan, 30 ke bawah
     QTest.mouseRelease(w, Qt.LeftButton, pos=QPoint(60, 40))
     assert w.pos() == QPoint(150, 130)
+
+
+def test_menu_klik_kanan_punya_keluar(app, conn, monkeypatch):
+    # Menu sungguhan menunggu klik. Widget diberi QMenu tiruan yang exec-nya hanya
+    # mencatat menu yang akan dibuka. (Mengganti QMenu.exec langsung di kelas Qt
+    # tidak berpengaruh: menu sungguhan tetap terbuka.)
+    menu_dibuka = []
+
+    class MenuTiruan(QMenu):
+        def exec(self, *args):
+            menu_dibuka.append(self)
+
+    monkeypatch.setattr(widget_module, "QMenu", MenuTiruan)
+    # quit sungguhan akan menghentikan aplikasi; gantinya hanya mencatat panggilan.
+    keluar = []
+    monkeypatch.setattr(QApplication, "quit", staticmethod(lambda: keluar.append(True)))
+
+    w = CocoWidget(conn)
+    w.contextMenuEvent(QContextMenuEvent(QContextMenuEvent.Mouse, QPoint(5, 5), QPoint(5, 5)))
+    assert len(menu_dibuka) == 1
+    aksi_keluar = [a for a in menu_dibuka[0].actions() if a.text() == "Keluar"]
+    assert len(aksi_keluar) == 1
+
+    aksi_keluar[0].trigger()
+    assert keluar == [True]
