@@ -128,3 +128,19 @@ def test_batal_tidak_mengubah_database(form, conn):
     assert form.result() == QDialog.Rejected
     assert not form.isVisible()
     assert isi_database(conn) == sebelum
+
+
+def test_error_database_saat_form_dibuat(app, conn, monkeypatch):
+    """Celah dari #37: list_areas gagal saat form dibuat; form tetap terbuka dengan pesan."""
+    def baca_terkunci(*args, **kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(form_module, "list_areas", baca_terkunci)
+    f = FormTambahTask(conn)
+    f.show()
+    try:
+        assert "database is locked" in f.error_label.text()
+        assert f.error_label.isVisible()
+        assert not f.tombol_simpan.isEnabled()
+    finally:
+        f.close()
