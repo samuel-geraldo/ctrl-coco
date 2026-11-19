@@ -54,6 +54,51 @@ def test_connect_tanpa_argumen_memakai_folder_appdata(tmp_path, monkeypatch):
     assert os.path.samefile(dibuka, tmp_path / "CtrlCoco" / "ctrlcoco.db")
 
 
+# --- waktu tunggu kunci (busy timeout) ---
+
+def busy_timeout(conn):
+    """Waktu tunggu kunci koneksi ini menurut SQLite sendiri, dalam milidetik."""
+    return conn.execute("PRAGMA busy_timeout").fetchone()[0]
+
+
+def test_connect_waktu_tunggu_kunci_bawaan_1_detik(tmp_path):
+    c = db.connect(tmp_path / "a.db")
+    try:
+        assert busy_timeout(c) == 1000
+    finally:
+        c.close()
+    assert db.WAKTU_TUNGGU_KUNCI == 1.0
+
+
+@pytest.mark.parametrize("detik, milidetik", [(0, 0), (0.05, 50), (2.5, 2500)])
+def test_connect_memakai_timeout_yang_diberikan(tmp_path, detik, milidetik):
+    c = db.connect(tmp_path / "a.db", timeout=detik)
+    try:
+        assert busy_timeout(c) == milidetik
+    finally:
+        c.close()
+
+
+def test_tulis_saat_terkunci_gagal_dengan_database_is_locked(tmp_path):
+    """Dengan nilai bawaan db.connect, tulis saat terkunci berakhir dengan error, bukan
+    menunggu tanpa batas. Durasinya sengaja tidak diukur: tes berbasis jam rapuh di CI."""
+    path = tmp_path / "kunci.db"
+    c = db.connect(path)
+    db.init_db(c)
+    # Koneksi lain berperan sebagai proses lain yang memegang kunci tulis.
+    lain = sqlite3.connect(path, isolation_level=None)
+    lain.execute("BEGIN EXCLUSIVE")
+    try:
+        with pytest.raises(sqlite3.OperationalError, match="database is locked"):
+            with c:
+                c.execute("INSERT INTO area (name) VALUES ('Kuliah')")
+        assert not c.in_transaction
+    finally:
+        lain.rollback()
+        lain.close()
+        c.close()
+
+
 # --- CHECK pada kolom tanggal: database menolak teks berformat salah dari jalur mana pun ---
 
 LOG_DATE_SALAH = [
