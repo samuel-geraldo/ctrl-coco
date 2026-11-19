@@ -41,21 +41,26 @@ def add_area(conn: sqlite3.Connection, name: str) -> int:
 
     Spasi di awal dan akhir dibuang sebelum disimpan. Mengembalikan id area baru.
     """
-    name = _wajib_isi(name, "Nama area wajib diisi")
     # `with conn:` menyimpan (commit) jika blok selesai, atau membatalkan (rollback)
     # jika ada error, sehingga transaksi tidak pernah dibiarkan terbuka.
     with conn:
-        try:
-            cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
-        except sqlite3.IntegrityError as e:
-            # Pesan dipilih dari penyebab sebenarnya. Penyebab yang tidak dikenal
-            # diteruskan apa adanya, bukan disamarkan dengan pesan yang keliru.
-            if e.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE":
-                # Kolom name ber-COLLATE NOCASE, jadi `=` di sini juga tanpa beda huruf
-                # dan menemukan nama yang sudah tersimpan, misalnya "Kuliah" untuk "kuliah".
-                ada = conn.execute("SELECT name FROM area WHERE name = ?", (name,)).fetchone()
-                raise ValueError(f"Area sudah ada: {ada[0] if ada else name}") from None
-            raise
+        return _sisipkan_area(conn, name)
+
+
+def _sisipkan_area(conn: sqlite3.Connection, name: str) -> int:
+    """Validasi dan INSERT area TANPA commit; pemanggil yang memegang `with conn:`."""
+    name = _wajib_isi(name, "Nama area wajib diisi")
+    try:
+        cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
+    except sqlite3.IntegrityError as e:
+        # Pesan dipilih dari penyebab sebenarnya. Penyebab yang tidak dikenal
+        # diteruskan apa adanya, bukan disamarkan dengan pesan yang keliru.
+        if e.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE":
+            # Kolom name ber-COLLATE NOCASE, jadi `=` di sini juga tanpa beda huruf
+            # dan menemukan nama yang sudah tersimpan, misalnya "Kuliah" untuk "kuliah".
+            ada = conn.execute("SELECT name FROM area WHERE name = ?", (name,)).fetchone()
+            raise ValueError(f"Area sudah ada: {ada[0] if ada else name}") from None
+        raise
     return cur.lastrowid
 
 
@@ -76,22 +81,61 @@ def add_task(
 
     Spasi di awal dan akhir judul dibuang sebelum disimpan.
     """
+    with conn:
+        return _sisipkan_task(conn, area_id, title, deadline, now)
+
+
+def _sisipkan_task(
+    conn: sqlite3.Connection,
+    area_id: int,
+    title: str,
+    deadline: str | None,
+    now: datetime | None,
+) -> int:
+    """Validasi dan INSERT task TANPA commit; pemanggil yang memegang `with conn:`."""
     title = _wajib_isi(title, "Judul task wajib diisi")
     if deadline is not None:
         _check_format(deadline, TIME_FORMAT, "deadline", "YYYY-MM-DD HH:MM")
-    with conn:
-        try:
-            cur = conn.execute(
-                "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
-                (area_id, title, deadline, _now_text(now)),
-            )
-        except sqlite3.IntegrityError as e:
-            # Hanya pelanggaran foreign key yang berarti "area tidak ada". Penyebab lain
-            # (misalnya area_id kosong) diteruskan apa adanya, bukan diberi pesan keliru.
-            if e.sqlite_errorname == "SQLITE_CONSTRAINT_FOREIGNKEY":
-                raise ValueError(f"Area tidak ditemukan: {area_id}") from None
-            raise
+    try:
+        cur = conn.execute(
+            "INSERT INTO task (area_id, title, deadline, created_at) VALUES (?, ?, ?, ?)",
+            (area_id, title, deadline, _now_text(now)),
+        )
+    except sqlite3.IntegrityError as e:
+        # Hanya pelanggaran foreign key yang berarti "area tidak ada". Penyebab lain
+        # (misalnya area_id kosong) diteruskan apa adanya, bukan diberi pesan keliru.
+        if e.sqlite_errorname == "SQLITE_CONSTRAINT_FOREIGNKEY":
+            raise ValueError(f"Area tidak ditemukan: {area_id}") from None
+        raise
     return cur.lastrowid
+
+
+def simpan_task_baru(
+    conn: sqlite3.Connection,
+    teks_area: str,
+    judul: str,
+    teks_deadline: str | None,
+    now: datetime | None = None,
+) -> int:
+    """Simpan isian form tambah task: area (lama atau baru) dan task, sekaligus.
+
+    - teks_area yang sama dengan area lama tanpa beda huruf besar-kecil memakai area
+      itu; selain itu area baru dibuat.
+    - teks_deadline kosong atau hanya spasi berarti tanpa deadline (None); spasi di
+      awal dan akhirnya dibuang.
+    - Semua atau tidak sama sekali: jika task gagal disimpan, area baru ikut dibatalkan.
+
+    Mengembalikan id task baru.
+    """
+    nama_area = _wajib_isi(teks_area, "Nama area wajib diisi")
+    deadline = teks_deadline.strip() if teks_deadline is not None else ""
+    # Satu `with conn:` untuk semuanya. Pembantu _sisipkan_* tidak commit sendiri,
+    # jadi error di langkah mana pun membatalkan seluruh transaksi, termasuk area baru.
+    with conn:
+        # Kolom name ber-COLLATE NOCASE: "kuliah" menemukan "Kuliah", sama seperti UNIQUE.
+        ada = conn.execute("SELECT id FROM area WHERE name = ?", (nama_area,)).fetchone()
+        area_id = ada[0] if ada else _sisipkan_area(conn, nama_area)
+        return _sisipkan_task(conn, area_id, judul, deadline or None, now)
 
 
 def list_tasks(conn: sqlite3.Connection, status: str | None = None) -> list[sqlite3.Row]:
