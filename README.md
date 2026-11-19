@@ -37,6 +37,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline
+- Tambah task (dan area baru) lewat form dari menu klik kanan
 - Ekspresi Coco mengikuti kondisi, dengan animasi frame bergantian
 - Data dibaca ulang otomatis setiap 60 detik
 - Data tersimpan lokal di SQLite; tidak ada akun, tidak ada jaringan
@@ -68,6 +69,16 @@ python -m ctrlcoco
 ```
 
 Klik kiri lalu seret untuk menggeser widget. Klik kanan lalu pilih **Keluar** untuk menutup.
+
+### Menambah task
+
+Klik kanan widget lalu pilih **Tambah task…**. Form berisi:
+
+- **Area**: pilih dari daftar, atau ketik nama area baru. Nama yang sama dengan area yang sudah ada tanpa beda huruf besar-kecil (misalnya `kuliah` untuk `Kuliah`) memakai area itu, bukan membuat area baru.
+- **Judul**: wajib diisi.
+- **Deadline**: opsional, format `YYYY-MM-DD HH:MM` (misalnya `2026-11-20 23:59`). Biarkan kosong untuk task tanpa deadline.
+
+Klik **Simpan**. Jika ada isian yang salah, pesannya muncul di form dengan warna merah, dan isian tidak hilang, jadi bisa langsung diperbaiki. Setelah tersimpan, form tertutup dan widget langsung menampilkan task terdekat. Area baru dan task disimpan sekaligus: jika task gagal disimpan, area baru juga tidak dibuat.
 
 ### Lokasi data
 
@@ -102,6 +113,7 @@ src/ctrlcoco/
   mood.py      get_mood(conn, now): waspada, senang, atau tidur
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
+  form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
 scripts/
   seed_demo.py data contoh generik ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
@@ -140,7 +152,8 @@ Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review l
 - [x] Tahap 4a: logika kondisi Coco (`get_mood`)
 - [x] Tahap 4b: mesin animasi dengan sprite sementara
 - [ ] Sprite pixel art Coco yang asli
-- [ ] Tahap 5: input cepat (form tambah task dan centang log harian)
+- [x] Tahap 5a: form tambah task dari menu klik kanan
+- [ ] Tahap 5b: centang log harian dan tombol selesai task (#38)
 - [ ] Tahap 6: tinjauan mingguan (opsional)
 - [ ] Pengemasan dan jalan otomatis saat Windows menyala (opsional)
 
