@@ -22,3 +22,14 @@ Catatan:
 - Deadline tepat 24 jam lagi belum waspada (aturannya "kurang dari").
 - Task tanpa deadline dan task berstatus `done` tidak pernah memicu waspada.
 - Logikanya ada di `get_mood(conn, now)` di `src/ctrlcoco/mood.py`, terpisah dari tampilan widget.
+
+## Waktu tunggu kunci database: 1 detik (#47)
+
+Bila database sedang dikunci proses lain, SQLite menunggu dulu sebelum menyerah dengan "database is locked". Bawaan `sqlite3` adalah 5 detik. Semua query widget berjalan di thread antarmuka, jadi selama menunggu widget beku (animasi berhenti, tidak bisa digeser); pada percobaan di #22, satu refresh saat terkunci menahan antarmuka sekitar 7,5 detik.
+
+Keputusan: `db.connect` memakai waktu tunggu 1 detik (`WAKTU_TUNGGU_KUNCI` di `src/ctrlcoco/db.py`), untuk widget, ketiga form, startup, dan `scripts/seed_demo.py`.
+
+Alasan:
+- 1 detik masih cukup untuk kunci yang singkat, misalnya skrip yang sedang menulis beberapa baris.
+- Bila kunci lebih lama, menunggu lebih lama tidak membantu: error-nya sudah ditangani di semua tempat (widget menampilkan "Data gagal dimuat" lalu mencoba lagi di refresh berikutnya; form menampilkan pesan dan tetap terbuka; startup menampilkan jendela error).
+- Tes memeriksa nilai `PRAGMA busy_timeout` secara langsung, bukan mengukur lamanya menunggu, karena tes yang bergantung pada jam rapuh di CI.
