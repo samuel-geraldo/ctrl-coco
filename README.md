@@ -37,7 +37,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline
-- Tambah task (dan area baru) lewat form dari menu klik kanan
+- Dari menu klik kanan: catat log hari ini, tambah task (dan area baru), dan tandai task selesai
 - Ekspresi Coco mengikuti kondisi, dengan animasi frame bergantian
 - Data dibaca ulang otomatis setiap 60 detik
 - Data tersimpan lokal di SQLite; tidak ada akun, tidak ada jaringan
@@ -68,7 +68,15 @@ $env:PYTHONPATH = "src"
 python -m ctrlcoco
 ```
 
-Klik kiri lalu seret untuk menggeser widget. Klik kanan lalu pilih **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, dan **Keluar** untuk menutup.
+
+### Mencatat log hari ini
+
+Klik kanan widget lalu pilih **Log hari ini…**. Centang **Claude Code** dan/atau **GitHub** sesuai aktivitas hari ini, isi catatan bila perlu, lalu klik **Simpan**. Jika log hari ini sudah pernah diisi, form langsung menampilkan isinya.
+
+- Catatan yang tidak diubah tetap tersimpan; catatan yang dikosongkan dihapus.
+- Hari dihitung valid untuk streak jika kedua kotak dicentang. Setelah tersimpan, streak dan ekspresi Coco langsung berubah.
+- Log hanya bisa diisi untuk hari ini.
 
 ### Menambah task
 
@@ -79,6 +87,10 @@ Klik kanan widget lalu pilih **Tambah task…**. Form berisi:
 - **Deadline**: opsional, format `YYYY-MM-DD HH:MM` (misalnya `2026-11-20 23:59`). Biarkan kosong untuk task tanpa deadline.
 
 Klik **Simpan**. Jika ada isian yang salah, pesannya muncul di form dengan warna merah, dan isian tidak hilang, jadi bisa langsung diperbaiki. Setelah tersimpan, form tertutup dan widget langsung menampilkan task terdekat. Area baru dan task disimpan sekaligus: jika task gagal disimpan, area baru juga tidak dibuat.
+
+### Menyelesaikan task
+
+Klik kanan widget lalu pilih **Selesaikan task…**. Form menampilkan semua task yang belum selesai, dengan deadline paling awal di atas dan task tanpa deadline di bawah. Pilih satu task lalu klik **Tandai selesai**. Task itu langsung hilang dari task terdekat di widget. Status selesai belum bisa dibatalkan dari widget.
 
 ### Lokasi data
 
@@ -114,6 +126,8 @@ src/ctrlcoco/
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
+  form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
+  form_selesai.py form untuk menandai task selesai
 scripts/
   seed_demo.py data contoh generik ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
@@ -153,7 +167,7 @@ Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review l
 - [x] Tahap 4b: mesin animasi dengan sprite sementara
 - [ ] Sprite pixel art Coco yang asli
 - [x] Tahap 5a: form tambah task dari menu klik kanan
-- [ ] Tahap 5b: centang log harian dan tombol selesai task (#38)
+- [x] Tahap 5b: centang log harian dan tombol selesai task
 - [ ] Tahap 6: tinjauan mingguan (opsional)
 - [ ] Pengemasan dan jalan otomatis saat Windows menyala (opsional)
 
