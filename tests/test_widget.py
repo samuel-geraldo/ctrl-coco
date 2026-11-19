@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QContextMenuEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu
 
-from ctrlcoco import data
+from ctrlcoco import data, db
 from ctrlcoco import widget as widget_module
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
@@ -210,6 +210,37 @@ def test_refresh_gagal_menampilkan_tanda_lalu_pulih(app, conn, sprite_dir):
     w.refresh_timer.timeout.emit()
     assert w.streak_label.text() == "Streak: 1 hari"
     assert "Laporan" in w.task_label.text()
+
+
+def test_refresh_saat_database_terkunci_sungguhan_lalu_pulih(app, tmp_path, sprite_dir):
+    # Kunci sungguhan dari koneksi lain, bukan error tiruan. timeout kecil supaya tes
+    # cepat: yang diuji di sini perilaku pulih, bukan lamanya menunggu.
+    path = tmp_path / "kunci.db"
+    c = db.connect(path, timeout=0.05)
+    db.init_db(c)
+    data.set_daily_log(c, date.today().isoformat(), True, True)
+    area_id = data.add_area(c, "Kuliah")
+    data.add_task(c, area_id, "Laporan", deadline="2099-01-01 10:00")
+    w = CocoWidget(c, sprite_dir=sprite_dir)
+    try:
+        assert w.streak_label.text() == "Streak: 1 hari"
+
+        lain = sqlite3.connect(path, isolation_level=None)
+        lain.execute("BEGIN EXCLUSIVE")
+        try:
+            w.refresh_timer.timeout.emit()
+            assert w.streak_label.text() == "Data gagal dimuat"
+            assert w.task_label.text() == ""
+        finally:
+            lain.rollback()
+            lain.close()
+
+        w.refresh_timer.timeout.emit()
+        assert w.streak_label.text() == "Streak: 1 hari"
+        assert "Laporan" in w.task_label.text()
+    finally:
+        w.close()
+        c.close()
 
 
 def test_refresh_pertama_gagal_coco_tidur(app, conn, sprite_dir):
