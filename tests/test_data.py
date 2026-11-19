@@ -493,3 +493,39 @@ def test_simpan_task_baru_error_database_membatalkan_area_baru(conn):
     assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
     assert _jumlah(conn, "task") == 0
     assert not conn.in_transaction
+
+
+# --- list_todo_untuk_selesai: daftar untuk form "Selesaikan task" ---
+
+def test_list_todo_untuk_selesai_urutan_deadline_lalu_tanpa_deadline(conn):
+    kuliah = data.add_area(conn, "Kuliah")
+    magang = data.add_area(conn, "Magang")
+    data.add_task(conn, kuliah, "Tanpa deadline 1", now=NOW)                        # id 1
+    data.add_task(conn, magang, "Paling akhir", "2026-03-20 10:00", now=NOW)       # id 2
+    data.add_task(conn, kuliah, "Kembar B", "2026-03-12 08:00", now=NOW)           # id 3
+    data.add_task(conn, magang, "Paling awal", "2026-03-11 23:59", now=NOW)        # id 4
+    data.add_task(conn, kuliah, "Kembar A", "2026-03-12 08:00", now=NOW)           # id 5
+    data.add_task(conn, magang, "Tanpa deadline 2", now=NOW)                        # id 6
+
+    hasil = [tuple(r) for r in data.list_todo_untuk_selesai(conn)]
+    assert hasil == [
+        (4, "Paling awal", "Magang", "2026-03-11 23:59"),
+        (3, "Kembar B", "Kuliah", "2026-03-12 08:00"),   # deadline sama: menurut id
+        (5, "Kembar A", "Kuliah", "2026-03-12 08:00"),
+        (2, "Paling akhir", "Magang", "2026-03-20 10:00"),
+        (1, "Tanpa deadline 1", "Kuliah", None),          # tanpa deadline paling bawah
+        (6, "Tanpa deadline 2", "Magang", None),
+    ]
+
+
+def test_list_todo_untuk_selesai_tanpa_task_done(conn):
+    area_id = data.add_area(conn, "Kuliah")
+    selesai = data.add_task(conn, area_id, "Sudah", "2026-03-11 10:00", now=NOW)
+    data.add_task(conn, area_id, "Belum", "2026-03-12 10:00", now=NOW)
+    data.complete_task(conn, selesai, now=NOW)
+    hasil = data.list_todo_untuk_selesai(conn)
+    assert [(r["title"], r["area"]) for r in hasil] == [("Belum", "Kuliah")]
+
+
+def test_list_todo_untuk_selesai_kosong(conn):
+    assert data.list_todo_untuk_selesai(conn) == []
