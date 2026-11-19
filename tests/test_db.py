@@ -193,6 +193,36 @@ def test_database_menyimpan_nama_area_apa_adanya(conn):
     assert names == ["Kuliah", "magang", "Pribadi"]
 
 
+def test_aturan_nama_kosong_database_sama_dengan_python(conn):
+    """Untuk spasi, tab, baris baru, dan CR, Python (data._wajib_isi) dan CHECK sepakat."""
+    from itertools import product
+
+    from ctrlcoco import data
+
+    def python_menerima(teks):
+        try:
+            data._wajib_isi(teks, "x")
+            return True
+        except ValueError:
+            return False
+
+    _tambah_area(conn)
+    # Semua gabungan sampai 3 karakter; tiap teks berbeda, jadi UNIQUE tidak ikut menolak.
+    for panjang in range(4):
+        for huruf in product(" \t\n\rx", repeat=panjang):
+            teks = "".join(huruf)
+            for sql in (
+                "INSERT INTO task (area_id, title, created_at) VALUES (1, ?, 'x')",
+                "INSERT INTO area (name) VALUES (?)",
+            ):
+                try:
+                    conn.execute(sql, (teks,))
+                    sqlite_menerima = True
+                except sqlite3.IntegrityError:
+                    sqlite_menerima = False
+                assert sqlite_menerima == python_menerima(teks), (sql, teks)
+
+
 def test_update_ke_nama_kosong_atau_kembar_juga_ditolak(conn):
     _tambah_area(conn)
     conn.execute("INSERT INTO area (name) VALUES ('Magang')")
