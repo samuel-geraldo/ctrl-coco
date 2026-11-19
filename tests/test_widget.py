@@ -9,6 +9,8 @@ from PySide6.QtWidgets import QApplication, QMenu
 
 from ctrlcoco import data
 from ctrlcoco import widget as widget_module
+from ctrlcoco.form_log import FormLogHarian
+from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
@@ -266,7 +268,8 @@ def test_menu_klik_kanan_punya_keluar(app, conn, monkeypatch):
     assert keluar == [True]
 
 
-def test_menu_klik_kanan_tambah_task_di_atas_keluar(app, conn, monkeypatch):
+def buka_menu(w, monkeypatch):
+    """Buka menu klik kanan dengan QMenu tiruan, kembalikan daftar aksinya."""
     menu_dibuka = []
 
     class MenuTiruan(QMenu):
@@ -274,9 +277,76 @@ def test_menu_klik_kanan_tambah_task_di_atas_keluar(app, conn, monkeypatch):
             menu_dibuka.append(self)
 
     monkeypatch.setattr(widget_module, "QMenu", MenuTiruan)
-    w = CocoWidget(conn)
     w.contextMenuEvent(QContextMenuEvent(QContextMenuEvent.Mouse, QPoint(5, 5), QPoint(5, 5)))
-    assert [a.text() for a in menu_dibuka[0].actions()] == ["Tambah task…", "Keluar"]
+    assert len(menu_dibuka) == 1
+    return menu_dibuka[0].actions()
+
+
+def picu_aksi(w, monkeypatch, teks):
+    aksi = [a for a in buka_menu(w, monkeypatch) if a.text() == teks]
+    assert len(aksi) == 1
+    aksi[0].trigger()
+
+
+def satu_form(w, kelas):
+    forms = w.findChildren(kelas)
+    assert len(forms) == 1
+    form = forms[0]
+    assert form.parent() is w           # muncul di atas Coco
+    assert form.isVisible() and form.isModal()
+    return form
+
+
+def form_sudah_dihapus(w, kelas):
+    # WA_DeleteOnClose: setelah Qt memproses penghapusan, form tidak tertinggal di memori.
+    QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    return w.findChildren(kelas) == []
+
+
+def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    aksi = buka_menu(w, monkeypatch)
+    assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
+        "Log hari ini…", "Tambah task…", "Selesaikan task…", "---", "Keluar",
+    ]
+
+
+def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    assert w.streak_label.text() == "Streak: 0 hari"
+    assert w.mood == "tidur"
+
+    picu_aksi(w, monkeypatch, "Log hari ini…")
+    form = satu_form(w, FormLogHarian)
+    assert form.tanggal == date.today().isoformat()
+    form.claude_code_check.setChecked(True)
+    form.github_check.setChecked(True)
+    form.tombol_simpan.click()
+
+    # Tanpa menunggu timer refresh: streak dan kondisi Coco langsung berubah.
+    assert w.streak_label.text() == "Streak: 1 hari"
+    assert w.mood == "senang"
+    assert form_sudah_dihapus(w, FormLogHarian)
+
+
+def test_selesaikan_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeypatch):
+    area_id = data.add_area(conn, "Kuliah")
+    mepet = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+    data.add_task(conn, area_id, "Kuis", deadline=mepet)
+    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+    w = CocoWidget(conn)
+    assert w.task_label.text() == f"Kuis\n{mepet}"
+    assert w.mood == "waspada"
+
+    picu_aksi(w, monkeypatch, "Selesaikan task…")
+    form = satu_form(w, FormSelesaikanTask)
+    form.daftar.setCurrentRow(0)  # Kuis, deadline paling awal
+    form.tombol_selesai.click()
+
+    # Task yang selesai hilang dari task terdekat, dan Coco tidak waspada lagi.
+    assert w.task_label.text() == "Laporan\n2099-01-01 10:00"
+    assert w.mood == "tidur"
+    assert form_sudah_dihapus(w, FormSelesaikanTask)
 
 
 def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeypatch):

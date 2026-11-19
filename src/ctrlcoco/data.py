@@ -153,6 +153,22 @@ def get_nearest_task(conn: sqlite3.Connection) -> sqlite3.Row | None:
     ).fetchone()
 
 
+def list_todo_untuk_selesai(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Task 'todo' beserta nama areanya (kolom id, title, area, deadline).
+
+    Urutan: deadline paling awal dulu, task tanpa deadline paling bawah, lalu menurut id.
+    """
+    # `deadline IS NULL` bernilai 0 untuk task berdeadline dan 1 untuk yang tidak, jadi
+    # task tanpa deadline turun ke bawah (tanpa ini SQLite menaruh NULL paling atas).
+    return conn.execute(
+        "SELECT task.id, task.title, area.name AS area, task.deadline"
+        " FROM task JOIN area ON area.id = task.area_id"
+        " WHERE task.status = ?"
+        " ORDER BY task.deadline IS NULL, task.deadline, task.id",
+        ("todo",),
+    ).fetchall()
+
+
 def complete_task(conn: sqlite3.Connection, task_id: int, now: datetime | None = None) -> None:
     """Tandai task selesai dan isi completed_at. Task yang sudah done dibiarkan."""
     with conn:

@@ -6,6 +6,8 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
 from ctrlcoco.data import get_nearest_task
+from ctrlcoco.form_log import FormLogHarian
+from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS, get_mood
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
@@ -112,17 +114,28 @@ class CocoWidget(QWidget):
     def mouseReleaseEvent(self, event):
         self._drag_offset = None
 
-    # --- klik kanan: tambah task, keluar ---
+    # --- klik kanan: log hari ini, tambah task, selesaikan task, keluar ---
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
+        menu.addAction("Log hari ini…", self.buka_form_log)
         menu.addAction("Tambah task…", self.buka_form_tambah_task)
+        menu.addAction("Selesaikan task…", self.buka_form_selesai)
+        menu.addSeparator()
         menu.addAction("Keluar", QApplication.quit)
         menu.exec(event.globalPos())
 
+    def buka_form_log(self) -> FormLogHarian:
+        return self._buka_form(FormLogHarian(self.conn, datetime.now(), self))
+
     def buka_form_tambah_task(self) -> FormTambahTask:
-        # Widget menjadi parent, supaya form muncul di atas Coco yang always on top.
-        form = FormTambahTask(self.conn, self)
+        return self._buka_form(FormTambahTask(self.conn, self))
+
+    def buka_form_selesai(self) -> FormSelesaikanTask:
+        return self._buka_form(FormSelesaikanTask(self.conn, self))
+
+    def _buka_form(self, form):
+        # Widget menjadi parent form, supaya form muncul di atas Coco yang always on top.
         # Setelah tersimpan, baca ulang database tanpa menunggu timer refresh.
         form.accepted.connect(self.refresh)
         # open(), bukan exec(): form modal (Coco tidak bisa diklik selama form terbuka),
