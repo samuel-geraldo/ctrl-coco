@@ -289,14 +289,24 @@ def test_tulis_saat_database_terkunci_tidak_meninggalkan_transaksi(tmp_path, nam
 
 def test_semua_fungsi_tulis_di_data_py_ikut_dites_saat_terkunci():
     """Penjaga: fungsi tulis baru di data.py harus ditambahkan ke PENULIS di atas."""
-    penulis = {
-        nama
+    fungsi_data = {
+        nama: inspect.getsource(fungsi)
         for nama, fungsi in inspect.getmembers(data, inspect.isfunction)
         if fungsi.__module__ == data.__name__
-        # Pembantu berawalan _ sengaja tidak commit; ia selalu dipanggil di dalam
-        # `with conn:` milik fungsi publik, jadi yang dites cukup fungsi publiknya.
-        and not nama.startswith("_")
-        and re.search(r"\b(INSERT|UPDATE|DELETE)\b", inspect.getsource(fungsi))
+    }
+    # Pembantu berawalan _ yang menulis sengaja tidak commit; ia selalu dipanggil di
+    # dalam `with conn:` milik fungsi publik, jadi yang dites cukup fungsi publiknya.
+    # Fungsi publik dianggap menulis jika berisi SQL tulis, atau memanggil pembantu itu.
+    pola_tulis = r"\b(INSERT|UPDATE|DELETE)\b"
+    pembantu_tulis = [
+        nama for nama, src in fungsi_data.items()
+        if nama.startswith("_") and re.search(pola_tulis, src)
+    ]
+    if pembantu_tulis:
+        pola_tulis += r"|\b(" + "|".join(pembantu_tulis) + r")\("
+    penulis = {
+        nama for nama, src in fungsi_data.items()
+        if not nama.startswith("_") and re.search(pola_tulis, src)
     }
     assert penulis == set(PENULIS), (
         "Fungsi tulis di data.py tidak sama dengan daftar PENULIS di tes ini. "
