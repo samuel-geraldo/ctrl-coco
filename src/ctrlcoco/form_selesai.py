@@ -56,21 +56,35 @@ class FormSelesaikanTask(QDialog):
         layout.addWidget(self.error_label)
         layout.addWidget(tombol)
 
+        self.daftar.itemSelectionChanged.connect(self._perbarui_tombol)
+        gagal = self._isi_daftar()
+        if gagal:
+            self._tampilkan_error(gagal)
+
+    def _isi_daftar(self) -> str | None:
+        """Baca task 'todo' dari database dan isi daftar dari awal.
+
+        Dipakai saat form dibuka dan saat daftar dimuat ulang, supaya caranya sama.
+        Mengembalikan pesan error bila daftar gagal dibaca, atau None bila berhasil.
+        """
+        self.daftar.clear()  # pilihan lama ikut hilang, jadi tombol nonaktif lagi
+        self.tombol_selesai.setEnabled(False)
         try:
-            tasks = list_todo_untuk_selesai(conn)
+            tasks = list_todo_untuk_selesai(self.conn)
         except sqlite3.Error as e:  # misalnya database terkunci
-            self._tampilkan_error(f"Daftar task gagal dibaca: {e}")
-            return
+            # Daftar dibiarkan kosong (bukan "tidak ada task"): isinya tidak diketahui.
+            self.daftar.show()
+            self.kosong_label.hide()
+            return f"Daftar task gagal dibaca: {e}"
 
         for t in tasks:
             deadline = t["deadline"] or "tanpa deadline"
             item = QListWidgetItem(f"{t['title']} · {t['area']} · {deadline}")
             item.setData(Qt.UserRole, t["id"])  # id disimpan, tidak ditampilkan
             self.daftar.addItem(item)
-        if not tasks:
-            self.daftar.hide()
-            self.kosong_label.show()
-        self.daftar.itemSelectionChanged.connect(self._perbarui_tombol)
+        self.daftar.setVisible(bool(tasks))
+        self.kosong_label.setVisible(not tasks)
+        return None
 
     def _perbarui_tombol(self) -> None:
         self.tombol_selesai.setEnabled(bool(self.daftar.selectedItems()))
@@ -83,9 +97,15 @@ class FormSelesaikanTask(QDialog):
         try:
             complete_task(self.conn, dipilih[0].data(Qt.UserRole), now=self.now)
         except ValueError as e:  # misalnya task sudah dihapus dari jalur lain
-            self._tampilkan_error(str(e))
+            # Baca ulang daftar supaya task yang sudah hilang tidak bisa diklik lagi.
+            pesan = str(e)
+            gagal = self._isi_daftar()
+            if gagal:
+                pesan = f"{pesan}\n{gagal}"
+            self._tampilkan_error(pesan)
             return
         except sqlite3.Error as e:
+            # Daftar tidak dimuat ulang: pilihan tetap ada supaya bisa dicoba lagi.
             self._tampilkan_error(f"Gagal menyimpan ke database: {e}")
             return
         self.accept()
