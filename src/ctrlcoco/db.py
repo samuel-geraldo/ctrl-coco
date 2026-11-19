@@ -11,6 +11,13 @@ def default_db_path() -> Path:
     return folder / "ctrlcoco.db"
 
 
+# Waktu tunggu kunci (detik) untuk koneksi dari connect(). Bawaan sqlite3 adalah 5 detik,
+# dan selama menunggu, thread antarmuka ikut beku. 1 detik cukup untuk kunci singkat
+# (misalnya skrip yang sedang menulis); lebih dari itu, error ditangani lalu dicoba lagi
+# di refresh berikutnya. Alasannya ada di docs/keputusan.md.
+WAKTU_TUNGGU_KUNCI = 1.0
+
+
 # Versi skema disimpan di PRAGMA user_version (angka milik database, bawaan 0).
 # 1 = kolom tanggal dijaga CHECK (lihat CEK_TANGGAL dan CEK_WAKTU).
 # 2 = area.name dan task.title tidak boleh kosong (CEK_NAMA), dan area.name unik
@@ -97,10 +104,16 @@ _CEK_NAMA_MIGRASI = (
 )
 
 
-def connect(path: str | os.PathLike | None = None) -> sqlite3.Connection:
+def connect(
+    path: str | os.PathLike | None = None, timeout: float = WAKTU_TUNGGU_KUNCI
+) -> sqlite3.Connection:
     """Buka koneksi; file dibuat jika belum ada. Tanpa argumen: database di folder AppData.
-    Gunakan ":memory:" untuk tes."""
-    conn = sqlite3.connect(default_db_path() if path is None else path)
+    Gunakan ":memory:" untuk tes.
+
+    `timeout`: berapa detik menunggu bila database sedang dikunci proses lain, sebelum
+    menyerah dengan "database is locked" (lihat WAKTU_TUNGGU_KUNCI).
+    """
+    conn = sqlite3.connect(default_db_path() if path is None else path, timeout=timeout)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
