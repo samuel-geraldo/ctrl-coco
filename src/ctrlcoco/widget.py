@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
 from ctrlcoco.data import get_nearest_task
+from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS, get_mood
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
@@ -111,9 +112,20 @@ class CocoWidget(QWidget):
     def mouseReleaseEvent(self, event):
         self._drag_offset = None
 
-    # --- klik kanan: keluar ---
+    # --- klik kanan: tambah task, keluar ---
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
+        menu.addAction("Tambah task…", self.buka_form_tambah_task)
         menu.addAction("Keluar", QApplication.quit)
         menu.exec(event.globalPos())
+
+    def buka_form_tambah_task(self) -> FormTambahTask:
+        # Widget menjadi parent, supaya form muncul di atas Coco yang always on top.
+        form = FormTambahTask(self.conn, self)
+        # Setelah tersimpan, baca ulang database tanpa menunggu timer refresh.
+        form.accepted.connect(self.refresh)
+        # open(), bukan exec(): form modal (Coco tidak bisa diklik selama form terbuka),
+        # tapi kode tidak berhenti menunggu dan tidak ada event loop bersarang.
+        form.open()
+        return form

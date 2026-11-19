@@ -120,6 +120,7 @@ def test_add_task_deadline_format_benar_diterima(conn, deadline):
         "2026-3-12 9:00",       # tanpa nol di depan
         "besok",
         "",
+        " 2026-03-12 23:59 ",   # spasi hanya dibuang di simpan_task_baru, bukan di add_task
     ],
 )
 def test_add_task_deadline_format_salah_ditolak(conn, deadline):
@@ -260,6 +261,7 @@ PENULIS = {
     "add_task": lambda c: data.add_task(c, 1, "Tugas baru", now=NOW),
     "complete_task": lambda c: data.complete_task(c, 1, now=NOW),
     "set_daily_log": lambda c: data.set_daily_log(c, "2026-03-10", True, True),
+    "simpan_task_baru": lambda c: data.simpan_task_baru(c, "Area baru", "Tugas baru", "", now=NOW),
 }
 
 
@@ -287,11 +289,24 @@ def test_tulis_saat_database_terkunci_tidak_meninggalkan_transaksi(tmp_path, nam
 
 def test_semua_fungsi_tulis_di_data_py_ikut_dites_saat_terkunci():
     """Penjaga: fungsi tulis baru di data.py harus ditambahkan ke PENULIS di atas."""
-    penulis = {
-        nama
+    fungsi_data = {
+        nama: inspect.getsource(fungsi)
         for nama, fungsi in inspect.getmembers(data, inspect.isfunction)
         if fungsi.__module__ == data.__name__
-        and re.search(r"\b(INSERT|UPDATE|DELETE)\b", inspect.getsource(fungsi))
+    }
+    # Pembantu berawalan _ yang menulis sengaja tidak commit; ia selalu dipanggil di
+    # dalam `with conn:` milik fungsi publik, jadi yang dites cukup fungsi publiknya.
+    # Fungsi publik dianggap menulis jika berisi SQL tulis, atau memanggil pembantu itu.
+    pola_tulis = r"\b(INSERT|UPDATE|DELETE)\b"
+    pembantu_tulis = [
+        nama for nama, src in fungsi_data.items()
+        if nama.startswith("_") and re.search(pola_tulis, src)
+    ]
+    if pembantu_tulis:
+        pola_tulis += r"|\b(" + "|".join(pembantu_tulis) + r")\("
+    penulis = {
+        nama for nama, src in fungsi_data.items()
+        if not nama.startswith("_") and re.search(pola_tulis, src)
     }
     assert penulis == set(PENULIS), (
         "Fungsi tulis di data.py tidak sama dengan daftar PENULIS di tes ini. "
@@ -397,3 +412,84 @@ def test_get_nearest_task_abaikan_done_dan_tanpa_deadline(conn):
 
 def test_get_nearest_task_kosong(conn):
     assert data.get_nearest_task(conn) is None
+
+
+# --- simpan_task_baru: logika form tambah task, semua atau tidak sama sekali ---
+
+def _jumlah(conn, tabel):
+    return conn.execute(f"SELECT COUNT(*) FROM {tabel}").fetchone()[0]
+
+
+def test_simpan_task_baru_ke_area_lama(conn):
+    kuliah = data.add_area(conn, "Kuliah")
+    task_id = data.simpan_task_baru(conn, "Kuliah", "Laporan", "2026-03-12 23:59", now=NOW)
+    task = data.list_tasks(conn)[0]
+    assert task["id"] == task_id
+    assert task["area_id"] == kuliah
+    assert task["title"] == "Laporan"
+    assert task["deadline"] == "2026-03-12 23:59"
+    assert task["created_at"] == "2026-03-10 09:30"
+    assert _jumlah(conn, "area") == 1
+    assert not conn.in_transaction
+
+
+def test_simpan_task_baru_membuat_area_baru(conn):
+    data.add_area(conn, "Kuliah")
+    data.simpan_task_baru(conn, "Organisasi", "Rapat", "", now=NOW)
+    areas = {a["name"]: a["id"] for a in data.list_areas(conn)}
+    assert set(areas) == {"Kuliah", "Organisasi"}
+    assert data.list_tasks(conn)[0]["area_id"] == areas["Organisasi"]
+
+
+@pytest.mark.parametrize("teks_area", ["kuliah", " KULIAH ", "Kuliah\t"])
+def test_simpan_task_baru_area_beda_huruf_memakai_area_lama(conn, teks_area):
+    kuliah = data.add_area(conn, "Kuliah")
+    data.simpan_task_baru(conn, teks_area, "Laporan", "", now=NOW)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+    assert data.list_tasks(conn)[0]["area_id"] == kuliah
+
+
+@pytest.mark.parametrize("teks_deadline", ["", "   ", "\t", None])
+def test_simpan_task_baru_deadline_kosong_jadi_none(conn, teks_deadline):
+    data.simpan_task_baru(conn, "Kuliah", "Laporan", teks_deadline, now=NOW)
+    assert data.list_tasks(conn)[0]["deadline"] is None
+
+
+def test_simpan_task_baru_membuang_spasi_di_sekitar_deadline(conn):
+    data.simpan_task_baru(conn, "Kuliah", "Laporan", " 2026-03-12 23:59 ", now=NOW)
+    assert data.list_tasks(conn)[0]["deadline"] == "2026-03-12 23:59"
+
+
+@pytest.mark.parametrize(
+    "teks_area, judul, teks_deadline, pesan",
+    [
+        ("Organisasi", "Rapat", "2026-3-12 9:00", "YYYY-MM-DD HH:MM"),
+        ("Organisasi", "Rapat", "2026-02-30 10:00", "YYYY-MM-DD HH:MM"),
+        ("Organisasi", "   ", "", "Judul task wajib diisi"),
+        ("   ", "Rapat", "", "Nama area wajib diisi"),
+    ],
+    ids=["deadline_format_salah", "deadline_mustahil", "judul_kosong", "area_kosong"],
+)
+def test_simpan_task_baru_gagal_validasi_tidak_meninggalkan_apa_pun(
+    conn, teks_area, judul, teks_deadline, pesan
+):
+    data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match=pesan):
+        data.simpan_task_baru(conn, teks_area, judul, teks_deadline, now=NOW)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+    assert _jumlah(conn, "task") == 0
+    assert not conn.in_transaction
+
+
+def test_simpan_task_baru_error_database_membatalkan_area_baru(conn):
+    """Area baru sudah disisipkan, lalu INSERT task gagal di database: area ikut dibatalkan."""
+    data.add_area(conn, "Kuliah")
+    conn.execute(
+        "CREATE TEMP TRIGGER tolak_task BEFORE INSERT ON task"
+        " BEGIN SELECT RAISE(ABORT, 'task ditolak'); END"
+    )
+    with pytest.raises(sqlite3.Error, match="task ditolak"):
+        data.simpan_task_baru(conn, "Organisasi", "Rapat", "2026-03-12 23:59", now=NOW)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+    assert _jumlah(conn, "task") == 0
+    assert not conn.in_transaction
