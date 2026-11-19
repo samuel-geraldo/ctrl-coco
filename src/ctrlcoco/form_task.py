@@ -31,7 +31,6 @@ class FormTambahTask(QDialog):
         # Combo yang bisa diketik: pilih area lama atau ketik nama area baru.
         self.area_combo = QComboBox()
         self.area_combo.setEditable(True)
-        self.area_combo.addItems([a["name"] for a in list_areas(conn)])
 
         self.judul_edit = QLineEdit()
         self.deadline_edit = QLineEdit()
@@ -59,6 +58,14 @@ class FormTambahTask(QDialog):
         layout.addLayout(isian)
         layout.addWidget(self.error_label)
         layout.addWidget(tombol)
+
+        try:
+            areas = list_areas(conn)
+        except sqlite3.Error as e:  # misalnya database terkunci
+            self._tampilkan_error(f"Daftar area gagal dibaca: {e}")
+            self.tombol_simpan.setEnabled(False)
+            return
+        self.area_combo.addItems([a["name"] for a in areas])
 
     def simpan(self) -> None:
         """Simpan isian. Berhasil: form ditutup (accept). Gagal: pesan tampil di form."""
