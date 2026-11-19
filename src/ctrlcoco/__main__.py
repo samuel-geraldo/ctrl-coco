@@ -17,7 +17,23 @@ def main(argv=None) -> int:
     # Jika sudah ada (misalnya saat tes), pakai yang itu: Qt hanya mengizinkan satu.
     app = QApplication.instance() or QApplication(sys.argv[:1])
 
-    path = db.default_db_path() if args.db is None else args.db
+    if args.db is not None:
+        path = args.db  # folder AppData tidak disentuh sama sekali
+    else:
+        # default_db_path membuat folder %APPDATA%\CtrlCoco; bisa gagal karena izin
+        # ditolak, disk penuh, dan sejenisnya. Hanya OSError yang ditangkap di sini:
+        # error lain adalah bug dan harus tetap terlihat.
+        try:
+            path = db.default_db_path()
+        except OSError as e:
+            lokasi = f"\n\nLokasi: {e.filename}" if e.filename else ""
+            QMessageBox.critical(
+                None,
+                "CtrlCoco",
+                f"Folder data tidak bisa dibuat.{lokasi}\n\nPenyebab: {e.strerror or e}",
+            )
+            return 1
+
     conn = None
     penyebab = None
     try:
