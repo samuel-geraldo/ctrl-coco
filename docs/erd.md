@@ -7,12 +7,12 @@ erDiagram
     area ||--o{ task : "memiliki"
     area {
         INTEGER id PK
-        TEXT name "NOT NULL, UNIQUE"
+        TEXT name "NOT NULL, tidak kosong, UNIQUE tanpa beda huruf"
     }
     task {
         INTEGER id PK
         INTEGER area_id FK "NOT NULL, ke area.id"
-        TEXT title "NOT NULL"
+        TEXT title "NOT NULL, tidak kosong"
         TEXT deadline "boleh kosong, ISO 8601 (YYYY-MM-DD HH:MM)"
         TEXT status "NOT NULL, 'todo' atau 'done'"
         TEXT created_at "NOT NULL"
@@ -34,7 +34,7 @@ Kelompok kegiatan, misalnya `Kuliah`, `Magang`, `Pribadi`. Label magang cukup um
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | id | INTEGER | PK, otomatis bertambah |
-| name | TEXT | wajib, unik |
+| name | TEXT | wajib, tidak boleh kosong; unik tanpa membedakan huruf besar-kecil (`COLLATE NOCASE`); lihat "Aturan nama" |
 
 ### task
 Satu pekerjaan yang ingin dipantau.
@@ -43,7 +43,7 @@ Satu pekerjaan yang ingin dipantau.
 |---|---|---|
 | id | INTEGER | PK, otomatis bertambah |
 | area_id | INTEGER | FK ke `area.id`, wajib |
-| title | TEXT | wajib |
+| title | TEXT | wajib, tidak boleh kosong; lihat "Aturan nama" |
 | deadline | TEXT | boleh kosong; format `YYYY-MM-DD HH:MM`, dijaga `CHECK` |
 | status | TEXT | `todo` atau `done`, default `todo` |
 | created_at | TEXT | waktu dibuat |
@@ -88,4 +88,30 @@ ORDER BY log_date DESC;
 
 Catatan tipe data: SQLite tidak punya `BOOLEAN` dan `DATE`, jadi ya/tidak disimpan sebagai `INTEGER` 0/1, dan tanggal/waktu sebagai `TEXT` berformat ISO supaya urutannya tetap benar.
 
-Format tanggal dijaga di database, bukan hanya di kode: `CHECK` pada `task.deadline` dan `daily_log.log_date` menolak teks yang formatnya salah atau tanggalnya tidak ada di kalender (`2026-3-5`, `2026-02-30`, jam `24:00`), dari jalur mana pun, termasuk edit manual lewat alat seperti DB Browser for SQLite. Dengan begitu kode yang membaca (`get_streak`, `get_mood`) boleh mengandalkan formatnya. Versi skema disimpan di `PRAGMA user_version` (sekarang 1); `init_db` membangun ulang tabel database lama sekali saja, dan berhenti dengan pesan yang menyebut baris rusak jika ada.
+Format tanggal dijaga di database, bukan hanya di kode: `CHECK` pada `task.deadline` dan `daily_log.log_date` menolak teks yang formatnya salah atau tanggalnya tidak ada di kalender (`2026-3-5`, `2026-02-30`, jam `24:00`), dari jalur mana pun, termasuk edit manual lewat alat seperti DB Browser for SQLite. Dengan begitu kode yang membaca (`get_streak`, `get_mood`) boleh mengandalkan formatnya.
+
+## Aturan nama
+
+Berlaku untuk `area.name` dan `task.title`.
+
+- **Spasi di awal dan akhir dibuang sebelum disimpan.** `add_area(conn, " Kuliah ")` menyimpan `Kuliah`. Di `data.py` ini memakai `str.strip()`, yang membuang semua jenis spasi.
+- **Kosong atau hanya spasi ditolak.** `add_area` dan `add_task` memunculkan `ValueError` ("Nama area wajib diisi", "Judul task wajib diisi"). Database ikut menjaga lewat `CHECK (trim(kolom, char(32, 9, 10, 13)) <> '')`: spasi, tab, baris baru, dan CR. `trim()` bawaan SQLite hanya membuang spasi biasa, jadi keempat karakter itu disebut satu per satu, dan ada tes yang memastikan Python dan database sepakat untuk keempatnya. Spasi Unicode yang lebih jarang (misalnya spasi tak terputus) hanya dijaga oleh `data.py`.
+- **Nama area unik tanpa membedakan huruf besar-kecil.** `Kuliah` dan `kuliah` dianggap sama; pesan error menyebut nama yang sudah tersimpan (`Area sudah ada: Kuliah`). Nama disimpan dan dikembalikan `list_areas` persis seperti ditulis. Batasan `COLLATE NOCASE`: hanya huruf A–Z yang disamakan; huruf lain seperti `É` dan `é` tetap dianggap berbeda. `list_areas` juga mengurutkan tanpa beda huruf (`Kuliah`, `magang`, `Pribadi`).
+
+## Versi skema dan migrasi
+
+Versi skema disimpan di `PRAGMA user_version`:
+
+| Versi | Isi |
+|---|---|
+| 0 | skema awal, tanpa `CHECK` tanggal dan nama |
+| 1 | `CHECK` format tanggal pada `task.deadline` dan `daily_log.log_date` |
+| 2 | aturan nama: `CHECK` tidak kosong pada `area.name` dan `task.title`, `UNIQUE COLLATE NOCASE` pada `area.name` (versi sekarang) |
+
+`init_db` menaikkan database v0 atau v1 langsung ke v2 dalam satu langkah:
+
+1. Semua baris diperiksa dulu: tanggal berformat salah, nama area atau judul task kosong, dan nama area yang bentrok tanpa beda huruf (setelah spasi di awal dan akhir dibuang, jadi ` kuliah` bentrok dengan `Kuliah`). Jika ada, `ValueError` menyebut semua baris itu sekaligus, dan database tidak diubah sama sekali (`user_version` juga tetap).
+2. Jika bersih, ketiga tabel dibangun ulang dalam satu transaksi; nama area dan judul task disalin setelah spasi di awal dan akhirnya dibuang. Kunci tamu dimatikan selama pembangunan ulang lalu diperiksa dengan `PRAGMA foreign_key_check`; jika ada task yang menunjuk area yang tidak ada, semuanya dibatalkan.
+3. ID tidak berubah, dan ID baru melanjutkan ID terbesar yang pernah dipakai.
+
+Migrasi hanya jalan sekali; pemanggilan berikutnya tidak mengubah apa pun.

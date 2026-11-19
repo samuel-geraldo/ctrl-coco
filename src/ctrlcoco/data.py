@@ -23,14 +23,27 @@ def _check_format(value: str, fmt: str, nama: str, contoh: str) -> None:
         )
 
 
+def _wajib_isi(teks: str | None, pesan: str) -> str:
+    """Buang spasi di awal dan akhir; tolak teks yang kosong atau hanya berisi spasi.
+
+    str.strip() membuang semua jenis spasi, termasuk tab dan baris baru. Database
+    menjaga aturan yang sama untuk spasi, tab, baris baru, dan CR (lihat db.CEK_NAMA).
+    """
+    if teks is None or not teks.strip():
+        raise ValueError(pesan)
+    return teks.strip()
+
+
 # --- area ---
 
 def add_area(conn: sqlite3.Connection, name: str) -> int:
-    """Tambah area; nama harus unik. Mengembalikan id area baru."""
+    """Tambah area; nama harus unik tanpa membedakan huruf besar-kecil.
+
+    Spasi di awal dan akhir dibuang sebelum disimpan. Mengembalikan id area baru.
+    """
+    name = _wajib_isi(name, "Nama area wajib diisi")
     # `with conn:` menyimpan (commit) jika blok selesai, atau membatalkan (rollback)
     # jika ada error, sehingga transaksi tidak pernah dibiarkan terbuka.
-    if name is None:
-        raise ValueError("Nama area wajib diisi")
     with conn:
         try:
             cur = conn.execute("INSERT INTO area (name) VALUES (?)", (name,))
@@ -38,7 +51,10 @@ def add_area(conn: sqlite3.Connection, name: str) -> int:
             # Pesan dipilih dari penyebab sebenarnya. Penyebab yang tidak dikenal
             # diteruskan apa adanya, bukan disamarkan dengan pesan yang keliru.
             if e.sqlite_errorname == "SQLITE_CONSTRAINT_UNIQUE":
-                raise ValueError(f"Area sudah ada: {name}") from None
+                # Kolom name ber-COLLATE NOCASE, jadi `=` di sini juga tanpa beda huruf
+                # dan menemukan nama yang sudah tersimpan, misalnya "Kuliah" untuk "kuliah".
+                ada = conn.execute("SELECT name FROM area WHERE name = ?", (name,)).fetchone()
+                raise ValueError(f"Area sudah ada: {ada[0] if ada else name}") from None
             raise
     return cur.lastrowid
 
@@ -56,9 +72,11 @@ def add_task(
     deadline: str | None = None,
     now: datetime | None = None,
 ) -> int:
-    """Tambah task ke sebuah area. deadline opsional, format 'YYYY-MM-DD HH:MM'."""
-    if title is None:
-        raise ValueError("Judul task wajib diisi")
+    """Tambah task ke sebuah area. deadline opsional, format 'YYYY-MM-DD HH:MM'.
+
+    Spasi di awal dan akhir judul dibuang sebelum disimpan.
+    """
+    title = _wajib_isi(title, "Judul task wajib diisi")
     if deadline is not None:
         _check_format(deadline, TIME_FORMAT, "deadline", "YYYY-MM-DD HH:MM")
     with conn:

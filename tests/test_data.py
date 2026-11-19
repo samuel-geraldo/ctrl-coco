@@ -35,6 +35,37 @@ def test_nama_dengan_tanda_kutip_aman(conn):
     assert data.list_areas(conn)[0]["name"] == nama
 
 
+KOSONG = ["", "   ", "\t", " \n "]
+
+
+def test_add_area_membuang_spasi_di_awal_dan_akhir(conn):
+    data.add_area(conn, " Kuliah ")
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+
+
+@pytest.mark.parametrize("nama", KOSONG)
+def test_add_area_nama_kosong_ditolak(conn, nama):
+    with pytest.raises(ValueError, match="Nama area wajib diisi"):
+        data.add_area(conn, nama)
+    assert data.list_areas(conn) == []
+    assert not conn.in_transaction
+
+
+@pytest.mark.parametrize("nama", ["kuliah", "KULIAH", " KULIAH "])
+def test_add_area_kembar_beda_huruf_ditolak_dengan_nama_yang_sudah_ada(conn, nama):
+    data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="^Area sudah ada: Kuliah$"):
+        data.add_area(conn, nama)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah"]
+    assert not conn.in_transaction
+
+
+def test_list_areas_mengembalikan_nama_seperti_disimpan(conn):
+    for nama in ("Pribadi", "magang", "Kuliah"):
+        data.add_area(conn, nama)
+    assert [a["name"] for a in data.list_areas(conn)] == ["Kuliah", "magang", "Pribadi"]
+
+
 # --- task ---
 
 def test_add_task_tanpa_deadline(conn):
@@ -54,6 +85,21 @@ def test_add_task_dengan_deadline(conn):
     area_id = data.add_area(conn, "Kuliah")
     data.add_task(conn, area_id, "Laporan", deadline="2026-03-12 23:59", now=NOW)
     assert data.list_tasks(conn)[0]["deadline"] == "2026-03-12 23:59"
+
+
+def test_add_task_membuang_spasi_di_awal_dan_akhir_judul(conn):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "  Baca bab 1\t", now=NOW)
+    assert data.list_tasks(conn)[0]["title"] == "Baca bab 1"
+
+
+@pytest.mark.parametrize("judul", KOSONG)
+def test_add_task_judul_kosong_ditolak(conn, judul):
+    area_id = data.add_area(conn, "Kuliah")
+    with pytest.raises(ValueError, match="Judul task wajib diisi"):
+        data.add_task(conn, area_id, judul, now=NOW)
+    assert data.list_tasks(conn) == []
+    assert not conn.in_transaction
 
 
 @pytest.mark.parametrize("deadline", ["2026-03-12 00:00", "2026-03-12 23:59", "2028-02-29 10:00"])
