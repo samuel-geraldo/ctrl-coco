@@ -2,13 +2,14 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QPoint, Qt
+from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtGui import QColor, QContextMenuEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu
 
 from ctrlcoco import data
 from ctrlcoco import widget as widget_module
+from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.widget import ANIMATION_INTERVAL_MS, REFRESH_INTERVAL_MS, CocoWidget
@@ -263,3 +264,49 @@ def test_menu_klik_kanan_punya_keluar(app, conn, monkeypatch):
 
     aksi_keluar[0].trigger()
     assert keluar == [True]
+
+
+def test_menu_klik_kanan_tambah_task_di_atas_keluar(app, conn, monkeypatch):
+    menu_dibuka = []
+
+    class MenuTiruan(QMenu):
+        def exec(self, *args):
+            menu_dibuka.append(self)
+
+    monkeypatch.setattr(widget_module, "QMenu", MenuTiruan)
+    w = CocoWidget(conn)
+    w.contextMenuEvent(QContextMenuEvent(QContextMenuEvent.Mouse, QPoint(5, 5), QPoint(5, 5)))
+    assert [a.text() for a in menu_dibuka[0].actions()] == ["Tambah task…", "Keluar"]
+
+
+def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeypatch):
+    menu_dibuka = []
+
+    class MenuTiruan(QMenu):
+        def exec(self, *args):
+            menu_dibuka.append(self)
+
+    monkeypatch.setattr(widget_module, "QMenu", MenuTiruan)
+    w = CocoWidget(conn)
+    assert w.task_label.text() == "Tidak ada task berdeadline"
+
+    w.contextMenuEvent(QContextMenuEvent(QContextMenuEvent.Mouse, QPoint(5, 5), QPoint(5, 5)))
+    aksi = [a for a in menu_dibuka[0].actions() if a.text() == "Tambah task…"]
+    aksi[0].trigger()
+
+    forms = w.findChildren(FormTambahTask)
+    assert len(forms) == 1
+    form = forms[0]
+    assert form.parent() is w           # muncul di atas Coco
+    assert form.isVisible() and form.isModal()
+
+    form.area_combo.setEditText("Kuliah")
+    form.judul_edit.setText("Laporan praktikum")
+    form.deadline_edit.setText("2026-03-12 23:59")
+    form.tombol_simpan.click()
+
+    # Tanpa menunggu timer refresh: task baru langsung terlihat.
+    assert w.task_label.text() == "Laporan praktikum\n2026-03-12 23:59"
+    # WA_DeleteOnClose: setelah Qt memproses penghapusan, form tidak tertinggal di memori.
+    QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    assert w.findChildren(FormTambahTask) == []
