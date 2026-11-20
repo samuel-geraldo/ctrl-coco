@@ -2,7 +2,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QDateTime, QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QContextMenuEvent, QMouseEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu
@@ -562,7 +562,8 @@ def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeyp
 
     form.area_combo.setEditText("Kuliah")
     form.judul_edit.setText("Laporan praktikum")
-    form.deadline_edit.setText("2026-03-12 23:59")
+    form.tanpa_deadline_check.setChecked(False)
+    form.deadline_edit.setDateTime(QDateTime(datetime(2026, 3, 12, 23, 59)))
     form.tombol_simpan.click()
 
     # Tanpa menunggu timer refresh: task baru langsung terlihat (deadline sudah lewat).
