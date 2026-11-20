@@ -227,7 +227,8 @@ def test_add_task_pesan_error_sesuai_penyebab(conn):
         data.add_task(conn, 999, "Tugas", now=NOW)
     with pytest.raises(ValueError, match="Judul task wajib diisi"):
         data.add_task(conn, area_id, None, now=NOW)
-    # Penyebab yang tidak dikenal (area_id kosong) tidak boleh disamarkan jadi "area tidak ditemukan".
+    # Penyebab yang tidak dikenal (area_id kosong) tidak boleh disamarkan
+    # jadi "area tidak ditemukan".
     with pytest.raises(sqlite3.IntegrityError):
         data.add_task(conn, None, "Tugas", now=NOW)
     assert data.list_tasks(conn) == []
@@ -249,7 +250,8 @@ def test_pelanggaran_check_tidak_disamarkan_jadi_pesan_area(conn):
     with pytest.raises(sqlite3.IntegrityError) as err:
         with conn:
             conn.execute(
-                "INSERT INTO task (area_id, title, status, created_at) VALUES (?, 'x', 'selesai', 'x')",
+                "INSERT INTO task (area_id, title, status, created_at)"
+                " VALUES (?, 'x', 'selesai', 'x')",
                 (area_id,),
             )
     assert err.value.sqlite_errorname == "SQLITE_CONSTRAINT_CHECK"

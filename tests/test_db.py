@@ -135,7 +135,8 @@ def test_database_menolak_deadline_salah(conn, nilai):
     _tambah_area(conn)
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
-            "INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'x', ?, '2026-01-01 00:00')",
+            "INSERT INTO task (area_id, title, deadline, created_at)"
+            " VALUES (1, 'x', ?, '2026-01-01 00:00')",
             (nilai,),
         )
 
@@ -143,13 +144,22 @@ def test_database_menolak_deadline_salah(conn, nilai):
 def test_database_menerima_tanggal_dan_deadline_yang_benar(conn):
     _tambah_area(conn)
     conn.execute("INSERT INTO daily_log VALUES ('2024-02-29', 1, 1, NULL)")  # tahun kabisat
-    conn.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'a', '2026-11-20 23:59', 'x')")
-    conn.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'b', NULL, 'x')")  # tanpa deadline
+    conn.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (1, 'a', '2026-11-20 23:59', 'x')"
+    )
+    # tanpa deadline
+    conn.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'b', NULL, 'x')"
+    )
 
 
 def test_update_ke_format_salah_juga_ditolak(conn):
     _tambah_area(conn)
-    conn.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'a', '2026-11-20 23:59', 'x')")
+    conn.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (1, 'a', '2026-11-20 23:59', 'x')"
+    )
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("UPDATE task SET deadline = '2026-11-20' WHERE id = 1")
     conn.execute("INSERT INTO daily_log VALUES ('2026-11-14', 1, 1, NULL)")
@@ -190,7 +200,8 @@ def test_check_database_sama_dengan_validasi_python(conn):
                 teks = f"{tanggal} {jam:02d}:{menit:02d}"
                 try:
                     conn.execute(
-                        "INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'x', ?, 'x')",
+                        "INSERT INTO task (area_id, title, deadline, created_at)"
+                        " VALUES (1, 'x', ?, 'x')",
                         (teks,),
                     )
                     sqlite_menerima = True
@@ -216,7 +227,8 @@ def test_database_menolak_judul_task_kosong(conn, nilai):
     _tambah_area(conn)
     with pytest.raises(sqlite3.IntegrityError) as err:
         conn.execute(
-            "INSERT INTO task (area_id, title, created_at) VALUES (1, ?, '2026-01-01 00:00')", (nilai,)
+            "INSERT INTO task (area_id, title, created_at) VALUES (1, ?, '2026-01-01 00:00')",
+            (nilai,),
         )
     assert err.value.sqlite_errorname == "SQLITE_CONSTRAINT_CHECK"
 
@@ -303,8 +315,14 @@ def _database_lama(tmp_path):
     c = db.connect(str(tmp_path / "lama.db"))
     c.executescript(SKEMA_LAMA)
     c.execute("INSERT INTO area (name) VALUES ('Kuliah')")
-    c.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'Laporan', '2026-11-20 23:59', '2026-11-10 08:00')")
-    c.execute("INSERT INTO task (area_id, title, deadline, status, created_at, completed_at) VALUES (1, 'Selesai', NULL, 'done', '2026-11-01 08:00', '2026-11-02 09:00')")
+    c.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (1, 'Laporan', '2026-11-20 23:59', '2026-11-10 08:00')"
+    )
+    c.execute(
+        "INSERT INTO task (area_id, title, deadline, status, created_at, completed_at)"
+        " VALUES (1, 'Selesai', NULL, 'done', '2026-11-01 08:00', '2026-11-02 09:00')"
+    )
     c.execute("INSERT INTO daily_log VALUES ('2026-11-14', 1, 1, 'catatan')")
     c.commit()
     return c
@@ -317,7 +335,9 @@ def test_migrasi_mempertahankan_data_dan_menyalakan_check(tmp_path):
     db.init_db(c)
 
     assert c.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
-    tasks = c.execute("SELECT id, title, deadline, status, completed_at FROM task ORDER BY id").fetchall()
+    tasks = c.execute(
+        "SELECT id, title, deadline, status, completed_at FROM task ORDER BY id"
+    ).fetchall()
     assert [tuple(t) for t in tasks] == [
         (1, "Laporan", "2026-11-20 23:59", "todo", None),
         (2, "Selesai", None, "done", "2026-11-02 09:00"),
@@ -345,7 +365,10 @@ def test_migrasi_tidak_dijalankan_dua_kali(tmp_path):
 def test_migrasi_berhenti_jika_ada_baris_rusak_dan_tidak_mengubah_apa_pun(tmp_path):
     c = _database_lama(tmp_path)
     c.execute("INSERT INTO daily_log VALUES ('2026-11-5', 1, 1, NULL)")
-    c.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'Rusak', '2026-11-20', 'x')")
+    c.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (1, 'Rusak', '2026-11-20', 'x')"
+    )
     c.commit()
 
     with pytest.raises(ValueError) as err:
@@ -355,8 +378,10 @@ def test_migrasi_berhenti_jika_ada_baris_rusak_dan_tidak_mengubah_apa_pun(tmp_pa
     assert "daily_log.log_date='2026-11-5'" in pesan
     assert "task.id=3" in pesan and "'2026-11-20'" in pesan
     assert c.execute("PRAGMA user_version").fetchone()[0] == 0
-    assert c.execute("SELECT COUNT(*) FROM daily_log").fetchone()[0] == 2  # baris rusak masih di tempatnya
-    c.execute("INSERT INTO daily_log VALUES ('2026-12-1', 1, 1, NULL)")    # tabel lama utuh (tanpa CHECK)
+    # baris rusak masih di tempatnya
+    assert c.execute("SELECT COUNT(*) FROM daily_log").fetchone()[0] == 2
+    # tabel lama utuh (tanpa CHECK)
+    c.execute("INSERT INTO daily_log VALUES ('2026-12-1', 1, 1, NULL)")
 
 
 def test_database_baru_langsung_berversi_terbaru(conn):
@@ -388,8 +413,14 @@ def _database_v1(tmp_path):
     c = db.connect(str(tmp_path / "v1.db"))
     c.executescript(SKEMA_V1)
     c.executemany("INSERT INTO area (name) VALUES (?)", [("Kuliah",), ("Magang",), ("Pribadi",)])
-    c.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (1, 'Laporan', '2026-11-20 23:59', '2026-11-10 08:00')")
-    c.execute("INSERT INTO task (area_id, title, deadline, created_at) VALUES (2, 'Presentasi', NULL, '2026-11-11 08:00')")
+    c.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (1, 'Laporan', '2026-11-20 23:59', '2026-11-10 08:00')"
+    )
+    c.execute(
+        "INSERT INTO task (area_id, title, deadline, created_at)"
+        " VALUES (2, 'Presentasi', NULL, '2026-11-11 08:00')"
+    )
     c.execute("INSERT INTO daily_log VALUES ('2026-11-14', 1, 0, 'catatan')")
     c.commit()
     return c
@@ -412,7 +443,8 @@ def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(tmp_path):
         (1, "Kuliah"), (2, "Magang"),
     ]
     relasi = c.execute(
-        "SELECT task.id, task.title, area.name FROM task JOIN area ON area.id = task.area_id ORDER BY task.id"
+        "SELECT task.id, task.title, area.name FROM task"
+        " JOIN area ON area.id = task.area_id ORDER BY task.id"
     ).fetchall()
     assert [tuple(r) for r in relasi] == [(1, "Laporan", "Kuliah"), (2, "Presentasi", "Magang")]
     assert tuple(c.execute("SELECT * FROM daily_log").fetchone()) == ("2026-11-14", 1, 0, "catatan")
@@ -425,7 +457,8 @@ def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         c.execute("INSERT INTO task (area_id, title, created_at) VALUES (99, 'x', 'x')")
     with pytest.raises(sqlite3.IntegrityError):
-        c.execute("INSERT INTO daily_log VALUES ('2026-11-5', 1, 1, NULL)")  # CHECK tanggal tetap ada
+        # CHECK tanggal tetap ada
+        c.execute("INSERT INTO daily_log VALUES ('2026-11-5', 1, 1, NULL)")
 
     assert c.execute("INSERT INTO area (name) VALUES ('Organisasi')").lastrowid == 4
     names = {r["name"] for r in c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
