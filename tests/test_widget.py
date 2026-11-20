@@ -571,3 +571,50 @@ def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeyp
     # WA_DeleteOnClose: setelah Qt memproses penghapusan, form tidak tertinggal di memori.
     QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     assert w.findChildren(FormTambahTask) == []
+
+
+# --- posisi form: di samping Coco, tidak menutupinya ---
+
+def kotak(rect):
+    return (rect.x(), rect.y(), rect.width(), rect.height())
+
+
+@pytest.mark.parametrize(
+    "buka, kelas",
+    [
+        ("buka_form_log", FormLogHarian),
+        ("buka_form_tambah_task", FormTambahTask),
+        ("buka_form_selesai", FormSelesaikanTask),
+    ],
+)
+def test_ketiga_form_memakai_posisi_form(app, conn, monkeypatch, buka, kelas):
+    panggilan = []
+
+    def posisi_tiruan(coco, form, layar):
+        panggilan.append((coco, form, layar))
+        return (123, 45)
+
+    monkeypatch.setattr(widget_module, "posisi_form", posisi_tiruan)
+    w = CocoWidget(conn)
+    w.move(300, 200)
+    w.show()
+    form = getattr(w, buka)()
+
+    assert isinstance(form, kelas)
+    assert len(panggilan) == 1
+    coco, ukuran_form, layar = panggilan[0]
+    assert coco == kotak(w.frameGeometry())
+    assert layar == kotak(w.screen().availableGeometry())
+    assert ukuran_form[2:] == kotak(form.frameGeometry())[2:]
+    assert form.pos() == QPoint(123, 45)
+    form.close()
+
+
+def test_form_dibuka_utuh_di_dalam_layar(app, conn):
+    w = CocoWidget(conn)
+    layar = w.screen().availableGeometry()
+    w.move(layar.right() - w.width(), layar.bottom() - w.height())  # pojok kanan bawah
+    w.show()
+    form = w.buka_form_log()
+    assert layar.contains(form.frameGeometry())
+    form.close()

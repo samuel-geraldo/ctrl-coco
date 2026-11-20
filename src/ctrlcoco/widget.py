@@ -12,6 +12,7 @@ from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.klik import adalah_klik
 from ctrlcoco.mood import MOODS, get_mood
 from ctrlcoco.pesan import pesan_coco, pesan_reaksi
+from ctrlcoco.posisi import posisi_form
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
 
@@ -184,10 +185,23 @@ class CocoWidget(QWidget):
         return self._buka_form(FormSelesaikanTask(self.conn, self))
 
     def _buka_form(self, form):
-        # Widget menjadi parent form, supaya form muncul di atas Coco yang always on top.
+        # Widget menjadi parent form, supaya form tampil di depan Coco yang always on top.
         # Setelah tersimpan, baca ulang database tanpa menunggu timer refresh.
         form.accepted.connect(self.refresh)
         # open(), bukan exec(): form modal (Coco tidak bisa diklik selama form terbuka),
         # tapi kode tidak berhenti menunggu dan tidak ada event loop bersarang.
         form.open()
+        # Pindahkan ke samping Coco supaya Coco tetap terlihat. Diukur setelah open():
+        # ukuran bingkai jendela (baris judul) baru diketahui setelah jendela dibuat.
+        x, y = posisi_form(
+            _kotak(self.frameGeometry()),
+            _kotak(form.frameGeometry()),
+            _kotak(self.screen().availableGeometry()),  # layar tempat Coco, tanpa taskbar
+        )
+        form.move(x, y)
         return form
+
+
+def _kotak(rect) -> tuple[int, int, int, int]:
+    """QRect menjadi tuple (x, y, lebar, tinggi) untuk posisi_form."""
+    return (rect.x(), rect.y(), rect.width(), rect.height())
