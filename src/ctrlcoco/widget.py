@@ -10,15 +10,17 @@ from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS, get_mood
+from ctrlcoco.pesan import pesan_coco
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
 
 ANIMATION_INTERVAL_MS = 500   # jarak antar frame animasi
 REFRESH_INTERVAL_MS = 60_000  # jarak antar pembacaan ulang database
+LEBAR_GELEMBUNG = 200         # lebar maksimum gelembung; kalimat lebih panjang turun baris
 
-TEXT_PANEL_STYLE = (
+BUBBLE_STYLE = (
     "QLabel { color: white; background-color: rgba(0, 0, 0, 170);"
-    " border-radius: 6px; padding: 4px 8px; }"
+    " border-radius: 10px; padding: 6px 10px; }"
 )
 
 
@@ -29,7 +31,7 @@ class CocoWidget(QWidget):
         self._drag_offset = None
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        # Latar jendela tembus pandang; hanya gambar Coco dan panel teks yang terlihat.
+        # Latar jendela tembus pandang; hanya gambar Coco dan gelembung yang terlihat.
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         # Semua frame dimuat sekali di sini lalu disimpan (cache), supaya timer
@@ -40,16 +42,20 @@ class CocoWidget(QWidget):
 
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        self.streak_label = QLabel()
-        self.task_label = QLabel()
-        # Panel gelap semi-transparan di belakang teks agar terbaca di latar apa pun.
-        for label in (self.streak_label, self.task_label):
-            label.setStyleSheet(TEXT_PANEL_STYLE)
+
+        # Gelembung bicara di atas Coco. Panel gelap semi-transparan agar terbaca di
+        # latar apa pun.
+        self.bubble_label = QLabel()
+        self.bubble_label.setStyleSheet(BUBBLE_STYLE)
+        # Teks biasa, bukan HTML: judul task berisi "<b>" tampil apa adanya.
+        self.bubble_label.setTextFormat(Qt.TextFormat.PlainText)
+        # Word wrap butuh batas lebar; tanpa itu label melebar mengikuti teks.
+        self.bubble_label.setWordWrap(True)
+        self.bubble_label.setMaximumWidth(LEBAR_GELEMBUNG)
 
         layout = QVBoxLayout(self)
+        layout.addWidget(self.bubble_label, alignment=Qt.AlignHCenter)
         layout.addWidget(self.image_label)
-        layout.addWidget(self.streak_label)
-        layout.addWidget(self.task_label)
 
         self.refresh()
 
@@ -64,28 +70,23 @@ class CocoWidget(QWidget):
         self.refresh_timer.start(REFRESH_INTERVAL_MS)
 
     def refresh(self, now: datetime | None = None) -> None:
-        """Baca ulang data dari database, lalu perbarui teks dan kondisi Coco."""
+        """Baca ulang data dari database, lalu perbarui gelembung dan kondisi Coco."""
         now = now or datetime.now()
-        # Baca semua data dulu, baru ubah tampilan: jika satu query gagal, tidak ada
-        # label yang sempat berisi campuran data baru dan lama.
+        # Baca semua data dulu, baru ubah tampilan: jika satu query gagal, gelembung
+        # tidak sempat berisi campuran data baru dan lama.
         try:
             streak = get_streak(self.conn, now.date())
             task = get_nearest_task(self.conn)
             mood = get_mood(self.conn, now)
         except sqlite3.Error:
-            # Misalnya database terkunci. Angka lama tidak ditampilkan seolah masih
+            # Misalnya database terkunci. Kalimat lama tidak ditampilkan seolah masih
             # benar. Timer refresh tetap berjalan, jadi detak berikutnya mencoba lagi.
-            self.streak_label.setText("Data gagal dimuat")
-            self.task_label.setText("")
+            self.bubble_label.setText("Data gagal dimuat")
             if self.mood is not None:
                 return  # Coco tetap di kondisi terakhir
             mood = "tidur"  # refresh pertama gagal: next_frame tetap butuh kondisi
         else:
-            self.streak_label.setText(f"Streak: {streak} hari")
-            if task is None:
-                self.task_label.setText("Tidak ada task berdeadline")
-            else:
-                self.task_label.setText(f"{task['title']}\n{task['deadline']}")
+            self.bubble_label.setText(pesan_coco(mood, streak, task, now))
 
         if mood != self.mood:
             # Kondisi berganti: animasi kondisi baru mulai dari frame pertama.
