@@ -1,5 +1,6 @@
 import pytest
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QImage, QPixmap
 
 from ctrlcoco.mood import MOODS
 from ctrlcoco.sprites import PLACEHOLDER_COLORS, SPRITE_WIDTH, load_frames, placeholder_frames
@@ -37,6 +38,26 @@ def test_load_frames_hanya_kondisi_yang_diminta(app, tmp_path):
 def test_load_frames_diskalakan_ke_lebar_widget(app, tmp_path):
     buat_sprite(tmp_path, "senang_1.png", "#ff0000")
     assert load_frames("senang", tmp_path)[0].width() == SPRITE_WIDTH
+
+
+def test_lebar_sprite_tiga_kali_gambar_64():
+    # Kelipatan bulat dari 64 (docs/sprite.md): semua piksel tampil sama besar.
+    assert SPRITE_WIDTH == 3 * 64
+
+
+def test_sprite_64_diperbesar_tajam_dan_rata(app, tmp_path):
+    gambar = QImage(64, 64, QImage.Format_ARGB32)
+    gambar.fill(Qt.transparent)
+    gambar.setPixelColor(0, 0, QColor("#ff0000"))
+    gambar.setPixelColor(1, 0, QColor("#0000ff"))
+    assert gambar.save(str(tmp_path / "senang_1.png"))
+
+    frame = load_frames("senang", tmp_path)[0].toImage()
+    assert (frame.width(), frame.height()) == (192, 192)
+    # Tiap piksel menjadi kotak 3x3 dengan warna utuh, tanpa campuran (tidak buram).
+    warna = [[frame.pixelColor(x, y).name() for x in range(7)] for y in range(3)]
+    assert all(baris == ["#ff0000"] * 3 + ["#0000ff"] * 3 + ["#000000"] for baris in warna)
+    assert frame.pixelColor(6, 0).alpha() == 0
 
 
 # --- fallback ke gambar sementara ---

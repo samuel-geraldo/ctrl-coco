@@ -5,7 +5,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap
 
 SPRITE_DIR = Path(__file__).resolve().parents[2] / "assets" / "sprites"
-SPRITE_WIDTH = 160
+# Sprite digambar 64x64 (docs/sprite.md) lalu diperbesar 3x. Kelipatan bulat supaya
+# setiap piksel menjadi kotak 3x3 yang sama besar; 2,5x membuat piksel tidak rata.
+SPRITE_WIDTH = 3 * 64
 
 # Warna gambar sementara untuk tiap kondisi.
 PLACEHOLDER_COLORS = {
