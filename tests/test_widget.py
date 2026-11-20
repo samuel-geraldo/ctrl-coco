@@ -13,12 +13,20 @@ from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS
-from ctrlcoco.pesan import pesan_coco, pesan_reaksi
+from ctrlcoco.pesan import (
+    pesan_coco,
+    pesan_perayaan,
+    pesan_perayaan_log,
+    pesan_perayaan_task,
+    pesan_reaksi,
+)
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.streak import get_streak
 from ctrlcoco.widget import (
     ANIMATION_INTERVAL_MS,
+    DURASI_PERAYAAN_MS,
     DURASI_REAKSI_MS,
+    INTERVAL_LOMPAT_MS,
     INTERVAL_REAKSI_MS,
     REFRESH_INTERVAL_MS,
     CocoWidget,
@@ -513,9 +521,11 @@ def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypat
     form.github_check.setChecked(True)
     form.tombol_simpan.click()
 
-    # Tanpa menunggu timer refresh: streak dan kondisi Coco langsung berubah.
-    assert "streak 1 hari" in w.bubble_label.text().lower()
+    # Tanpa menunggu timer refresh: kondisi Coco langsung berubah. Log baru lengkap
+    # memicu perayaan (#93); setelah perayaan selesai, gelembung menyebut streak.
     assert w.mood == "senang"
+    w.perayaan_timer.timeout.emit()
+    assert "streak 1 hari" in w.bubble_label.text().lower()
     assert form_sudah_dihapus(w, FormLogHarian)
 
 
@@ -533,9 +543,11 @@ def test_selesaikan_task_membuka_form_dan_widget_langsung_refresh(app, conn, mon
     form.daftar.setCurrentRow(0)  # Kuis, deadline paling awal
     form.tombol_selesai.click()
 
-    # Task yang selesai hilang dari gelembung, dan Coco tidak waspada lagi.
-    assert "Kuis" not in w.bubble_label.text()
+    # Coco tidak waspada lagi. Task selesai memicu perayaan (#93); setelah perayaan
+    # selesai, task yang sudah selesai hilang dari gelembung.
     assert w.mood == "tidur"
+    w.perayaan_timer.timeout.emit()
+    assert "Kuis" not in w.bubble_label.text()
     assert form_sudah_dihapus(w, FormSelesaikanTask)
 
 
@@ -619,3 +631,210 @@ def test_form_dibuka_utuh_di_dalam_layar(app, conn):
     form = w.buka_form_log()
     assert layar.contains(form.frameGeometry())
     form.close()
+
+
+# --- perayaan: tonggak streak, log baru lengkap, task selesai (#93) ---
+
+def siapkan_streak_kemarin(conn, hari):
+    """Log valid untuk `hari` hari terakhir sebelum hari ini (hari ini belum diisi)."""
+    for n in range(1, hari + 1):
+        data.set_daily_log(conn, (date.today() - timedelta(days=n)).isoformat(), True, True)
+
+
+def simpan_log(w, claude_code=True, github=True):
+    form = w.buka_form_log()
+    form.claude_code_check.setChecked(claude_code)
+    form.github_check.setChecked(github)
+    form.tombol_simpan.click()
+
+
+def variasi(fungsi, *args):
+    """Kedua variasi kalimat (hari ini dan besok) dari fungsi pesan berbasis tanggal."""
+    sekarang = datetime.now()
+    return {fungsi(*args, sekarang), fungsi(*args, sekarang + timedelta(days=1))}
+
+
+def test_konstanta_perayaan():
+    assert DURASI_PERAYAAN_MS == {"tonggak": 3000, "log": 1500, "task": 1500}
+    assert INTERVAL_LOMPAT_MS == 200
+
+
+def test_log_mencapai_tonggak_3_memicu_perayaan_tonggak(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)  # streak 2 -> 3
+
+    assert w.merayakan
+    assert w.perayaan_timer.isActive()
+    assert w.perayaan_timer.isSingleShot()
+    assert w.perayaan_timer.interval() == DURASI_PERAYAAN_MS["tonggak"]
+    assert w.animation_timer.interval() == INTERVAL_LOMPAT_MS
+    # Belum ada lompat_<n>.png: gambar sementara lompat dipakai tanpa error.
+    assert warna_gambar(w) == PLACEHOLDER_COLORS["lompat"]
+    assert w.bubble_label.text() == pesan_perayaan(3)
+
+
+def test_setelah_perayaan_kembali_ke_kondisi(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)
+    w.next_frame()
+
+    w.perayaan_timer.timeout.emit()  # perayaan selesai, tanpa menunggu
+
+    assert not w.merayakan
+    assert w.animation_timer.interval() == ANIMATION_INTERVAL_MS
+    assert warna_gambar(w) == WARNA_SPRITE["senang"][0]
+    assert "streak 3 hari" in w.bubble_label.text().lower()
+
+
+def test_log_baru_valid_tanpa_tonggak_memicu_perayaan_biasa(app, conn, sprite_dir):
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)  # streak 0 -> 1
+    assert w.merayakan
+    assert w.perayaan_timer.interval() == DURASI_PERAYAAN_MS["log"]
+    assert w.bubble_label.text() in variasi(pesan_perayaan_log)
+
+
+def test_simpan_ulang_log_yang_sudah_valid_tidak_merayakan(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    data.set_daily_log(conn, date.today().isoformat(), True, True)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)  # streak tetap 3
+    assert not w.merayakan
+    assert not w.perayaan_timer.isActive()
+
+
+def test_log_belum_lengkap_tidak_merayakan(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w, claude_code=True, github=False)
+    assert not w.merayakan
+
+
+def test_form_log_dibatalkan_tidak_merayakan(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    form = w.buka_form_log()
+    form.claude_code_check.setChecked(True)
+    form.github_check.setChecked(True)
+    form.tombol_batal.click()
+    assert not w.merayakan
+
+
+def test_refresh_timer_tidak_memicu_perayaan(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    data.set_daily_log(conn, date.today().isoformat(), True, True)  # bukan lewat form
+    w.refresh_timer.timeout.emit()
+    assert w.mood == "senang"
+    assert not w.merayakan
+
+
+def test_widget_baru_dibuka_tidak_merayakan(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    data.set_daily_log(conn, date.today().isoformat(), True, True)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    assert not w.merayakan
+
+
+def test_selesaikan_task_memicu_perayaan_task(app, conn, sprite_dir):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    form = w.buka_form_selesai()
+    form.daftar.setCurrentRow(0)
+    form.tombol_selesai.click()
+
+    assert w.merayakan
+    assert w.perayaan_timer.interval() == DURASI_PERAYAAN_MS["task"]
+    assert warna_gambar(w) == PLACEHOLDER_COLORS["lompat"]
+    assert w.bubble_label.text() in variasi(pesan_perayaan_task, "Laporan")
+
+
+def test_form_selesai_dibatalkan_tidak_merayakan(app, conn, sprite_dir):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    form = w.buka_form_selesai()
+    form.daftar.setCurrentRow(0)
+    form.tombol_batal.click()
+    assert not w.merayakan
+
+
+def test_tambah_task_tidak_merayakan(app, conn, sprite_dir):
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    form = w.buka_form_tambah_task()
+    form.area_combo.setEditText("Kuliah")
+    form.judul_edit.setText("Laporan")
+    form.tombol_simpan.click()
+    assert len(data.list_tasks(conn)) == 1
+    assert not w.merayakan
+
+
+def test_refresh_saat_perayaan_tidak_memotong(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Kuis", deadline="2000-01-01 10:00")  # Coco jadi waspada
+
+    w.refresh()
+    assert w.merayakan
+    assert w.bubble_label.text() == pesan_perayaan(3)
+    assert warna_gambar(w) == PLACEHOLDER_COLORS["lompat"]
+
+    w.perayaan_timer.timeout.emit()
+    assert w.mood == "waspada"
+    assert warna_gambar(w) == WARNA_SPRITE["waspada"][0]
+    assert '"Kuis"' in w.bubble_label.text()
+
+
+def test_klik_saat_merayakan_diabaikan(app, conn, sprite_dir):
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    w.show()
+    w.mulai_perayaan("Hore!", DURASI_PERAYAAN_MS["log"])
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    assert not w.bereaksi
+    assert w.bubble_label.text() == "Hore!"
+    assert w.animation_timer.interval() == INTERVAL_LOMPAT_MS
+
+
+def test_perayaan_menghentikan_reaksi_klik(app, conn, sprite_dir):
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    w.refresh(NOW)
+    w.mulai_reaksi()
+    w.mulai_perayaan("Hore!", DURASI_PERAYAAN_MS["log"])
+    assert not w.bereaksi
+    assert not w.reaksi_timer.isActive()
+    assert w.merayakan
+    assert w.bubble_label.text() == "Hore!"
+
+    w.perayaan_timer.timeout.emit()
+    assert w.bubble_label.text() == pesan_coco("tidur", 0, None, NOW)
+
+
+def test_perayaan_memakai_frame_lompat_dari_berkas(app, conn, sprite_dir):
+    warna_lompat = ["#112233", "#445566", "#778899"]
+    for n, warna in enumerate(warna_lompat, start=1):
+        pixmap = QPixmap(8, 8)
+        pixmap.fill(QColor(warna))
+        assert pixmap.save(str(sprite_dir / f"lompat_{n}.png"))
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    w.mulai_perayaan("Hore!", DURASI_PERAYAAN_MS["log"])
+
+    terlihat = [warna_gambar(w)]
+    for _ in range(3):
+        w.next_frame()
+        terlihat.append(warna_gambar(w))
+    assert terlihat == [*warna_lompat, warna_lompat[0]]
+
+
+def test_perayaan_tidak_mengubah_database(app, conn, sprite_dir):
+    siapkan_streak_kemarin(conn, 2)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    simpan_log(w)
+    sebelum = conn.total_changes
+    w.next_frame()
+    w.perayaan_timer.timeout.emit()
+    assert conn.total_changes == sebelum

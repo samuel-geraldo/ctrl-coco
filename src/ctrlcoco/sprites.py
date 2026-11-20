@@ -14,6 +14,7 @@ PLACEHOLDER_COLORS = {
     "waspada": "#e4572e",  # merah-oranye
     "senang": "#f2b134",   # kuning
     "tidur": "#6c7a99",    # biru keabu-abuan
+    "lompat": "#3fa34d",   # hijau, untuk animasi perayaan (#93)
 }
 
 

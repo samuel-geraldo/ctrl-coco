@@ -62,9 +62,16 @@ def test_sprite_64_diperbesar_tajam_dan_rata(app, tmp_path):
 
 # --- fallback ke gambar sementara ---
 
-def test_setiap_kondisi_punya_warna_sementara_yang_berbeda():
-    assert set(PLACEHOLDER_COLORS) == set(MOODS)
-    assert len(set(PLACEHOLDER_COLORS.values())) == len(MOODS)
+def test_setiap_kondisi_dan_lompat_punya_warna_sementara_yang_berbeda():
+    semua = (*MOODS, "lompat")
+    assert set(PLACEHOLDER_COLORS) == set(semua)
+    assert len(set(PLACEHOLDER_COLORS.values())) == len(semua)
+
+
+def test_lompat_tanpa_berkas_memakai_gambar_sementara(app, tmp_path):
+    # Perayaan (#93) memakai frame lompat; selama PNG belum ada, tidak boleh error.
+    frames = load_frames("lompat", tmp_path)
+    assert [warna_tengah(f) for f in frames] == [PLACEHOLDER_COLORS["lompat"]] * 2
 
 
 @pytest.mark.parametrize("mood", MOODS)

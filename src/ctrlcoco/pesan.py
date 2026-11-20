@@ -87,6 +87,37 @@ def pesan_reaksi(kondisi: str) -> str:
     return _REAKSI[kondisi]
 
 
+# Kalimat perayaan tonggak streak, satu per tonggak.
+_PERAYAAN_TONGGAK = {
+    3: "Yeay! Streak 3 hari! Awal yang bagus.",
+    7: "Seminggu penuh! Streak 7 hari!",
+    14: "Dua minggu berturut-turut! Streak 14 hari!",
+    30: "Luar biasa, streak 30 hari! Sebulan penuh!",
+}
+
+
+def pesan_perayaan(tonggak: int) -> str:
+    """Kalimat gelembung saat streak baru mencapai tonggak (3, 7, 14, 30)."""
+    if tonggak not in _PERAYAAN_TONGGAK:
+        raise ValueError(f"Tonggak streak tidak dikenal: {tonggak!r}")
+    return _PERAYAAN_TONGGAK[tonggak]
+
+
+def pesan_perayaan_log(now: datetime) -> str:
+    """Kalimat saat log hari ini baru lengkap. Variasi ditentukan tanggal `now`."""
+    return ("Log hari ini lengkap. Mantap!", "Yes! Log hari ini beres.")[
+        _indeks_variasi(now.date())
+    ]
+
+
+def pesan_perayaan_task(judul: str, now: datetime) -> str:
+    """Kalimat saat task diselesaikan, menyebut judulnya (dipotong bila panjang)."""
+    judul = _potong_judul(judul)
+    return (f'"{judul}" selesai! Hebat!', f'Satu beres: "{judul}". Lanjut!')[
+        _indeks_variasi(now.date())
+    ]
+
+
 def _indeks_variasi(hari: date) -> int:
     # Nomor urut hari (toordinal) bergantian genap-ganjil: 0 hari ini, 1 besok, dst.
     return hari.toordinal() % 2

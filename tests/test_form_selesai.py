@@ -223,3 +223,34 @@ def test_batal_tidak_mengubah_database(tiga_task, form_dibuat):
     assert form.result() == QDialog.Rejected
     assert not form.isVisible()
     assert [r["status"] for r in data.list_tasks(tiga_task)] == ["todo", "todo", "todo"]
+
+
+# --- judul task yang diselesaikan (untuk perayaan di widget, #93) ---
+
+def test_judul_selesai_kosong_sebelum_ada_yang_diselesaikan(tiga_task, form_dibuat):
+    assert form_dibuat(tiga_task).judul_selesai is None
+
+
+def test_judul_selesai_terisi_setelah_tandai_selesai(tiga_task, form_dibuat):
+    form = form_dibuat(tiga_task)
+    pilih(form, 1)  # Laporan
+    form.tombol_selesai.click()
+    assert form.judul_selesai == "Laporan"
+
+
+def test_judul_selesai_tetap_kosong_bila_gagal(tiga_task, form_dibuat, monkeypatch):
+    def selesai_terkunci(*args, **kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(form_module, "complete_task", selesai_terkunci)
+    form = form_dibuat(tiga_task)
+    pilih(form, 1)
+    form.tombol_selesai.click()
+    assert form.judul_selesai is None
+
+
+def test_judul_selesai_tetap_kosong_bila_batal(tiga_task, form_dibuat):
+    form = form_dibuat(tiga_task)
+    pilih(form, 1)
+    form.tombol_batal.click()
+    assert form.judul_selesai is None

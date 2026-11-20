@@ -5,13 +5,20 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
-from ctrlcoco.data import get_nearest_task
+from ctrlcoco.data import DATE_FORMAT, get_daily_log, get_nearest_task
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.klik import adalah_klik
 from ctrlcoco.mood import MOODS, get_mood
-from ctrlcoco.pesan import pesan_coco, pesan_reaksi
+from ctrlcoco.perayaan import Perayaan, jenis_perayaan_log
+from ctrlcoco.pesan import (
+    pesan_coco,
+    pesan_perayaan,
+    pesan_perayaan_log,
+    pesan_perayaan_task,
+    pesan_reaksi,
+)
 from ctrlcoco.posisi import posisi_form
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
@@ -19,6 +26,9 @@ from ctrlcoco.streak import get_streak
 ANIMATION_INTERVAL_MS = 500   # jarak antar frame animasi
 INTERVAL_REAKSI_MS = 120      # jarak antar frame saat bereaksi (Coco bergoyang cepat)
 DURASI_REAKSI_MS = 1000       # lama reaksi setelah Coco diklik
+INTERVAL_LOMPAT_MS = 200      # jarak antar frame lompat saat merayakan
+# Lama perayaan per jenis: tonggak streak lebih panjang daripada perayaan biasa.
+DURASI_PERAYAAN_MS = {"tonggak": 3000, "log": 1500, "task": 1500}
 REFRESH_INTERVAL_MS = 60_000  # jarak antar pembacaan ulang database
 LEBAR_GELEMBUNG = 200         # lebar maksimum gelembung; kalimat lebih panjang turun baris
 
@@ -35,7 +45,9 @@ class CocoWidget(QWidget):
         self._drag_offset = None
         self._posisi_tekan = None  # posisi layar saat tombol kiri ditekan (klik vs seret)
         self.bereaksi = False
-        self._teks_gelembung = ""  # kalimat terakhir dari refresh, tampil lagi setelah reaksi
+        self.merayakan = False
+        # Kalimat terakhir dari refresh, tampil lagi setelah reaksi atau perayaan selesai.
+        self._teks_gelembung = ""
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         # Latar jendela tembus pandang; hanya gambar Coco dan gelembung yang terlihat.
@@ -44,6 +56,7 @@ class CocoWidget(QWidget):
         # Semua frame dimuat sekali di sini lalu disimpan (cache), supaya timer
         # animasi tidak membaca file dari disk di setiap detak.
         self._frames = {mood: load_frames(mood, sprite_dir) for mood in MOODS}
+        self._frames_lompat = load_frames("lompat", sprite_dir)  # untuk perayaan
         self.mood = None
         self._frame_index = 0
 
@@ -82,6 +95,11 @@ class CocoWidget(QWidget):
         self.reaksi_timer.setInterval(DURASI_REAKSI_MS)
         self.reaksi_timer.timeout.connect(self.selesai_reaksi)
 
+        # Timer perayaan: sekali jalan, lamanya diatur saat perayaan dimulai.
+        self.perayaan_timer = QTimer(self)
+        self.perayaan_timer.setSingleShot(True)
+        self.perayaan_timer.timeout.connect(self.selesai_perayaan)
+
     def refresh(self, now: datetime | None = None) -> None:
         """Baca ulang data dari database, lalu perbarui gelembung dan kondisi Coco."""
         now = now or datetime.now()
@@ -102,29 +120,36 @@ class CocoWidget(QWidget):
             self._atur_gelembung(pesan_coco(mood, streak, task, now))
 
         if mood != self.mood:
-            # Kondisi berganti: animasi kondisi baru mulai dari frame pertama.
             self.mood = mood
-            self._frame_index = 0
-            self._show_frame()
+            # Kondisi berganti: animasi kondisi baru mulai dari frame pertama. Selama
+            # merayakan, frame lompat tidak dipotong; kondisi baru tampil sesudahnya.
+            if not self.merayakan:
+                self._frame_index = 0
+                self._show_frame()
 
     def next_frame(self) -> None:
         """Maju satu frame; setelah frame terakhir kembali ke frame pertama."""
-        self._frame_index = (self._frame_index + 1) % len(self._frames[self.mood])
+        self._frame_index = (self._frame_index + 1) % len(self._frames_aktif())
         self._show_frame()
 
+    def _frames_aktif(self):
+        return self._frames_lompat if self.merayakan else self._frames[self.mood]
+
     def _show_frame(self) -> None:
-        self.image_label.setPixmap(self._frames[self.mood][self._frame_index])
+        self.image_label.setPixmap(self._frames_aktif()[self._frame_index])
 
     def _atur_gelembung(self, teks: str) -> None:
-        # Selama bereaksi, kalimat baru disimpan saja; tampil setelah reaksi selesai.
+        # Selama bereaksi atau merayakan, kalimat baru disimpan saja; tampil sesudahnya.
         self._teks_gelembung = teks
-        if not self.bereaksi:
+        if not (self.bereaksi or self.merayakan):
             self.bubble_label.setText(teks)
 
     # --- reaksi klik: Coco bergoyang cepat dan berkata sesuatu ---
 
     def mulai_reaksi(self) -> None:
         """Mulai (atau ulangi) reaksi klik. Tidak menyentuh database."""
+        if self.merayakan:
+            return  # klik tidak memotong perayaan
         self.bereaksi = True
         self.bubble_label.setText(pesan_reaksi(self.mood))
         self.animation_timer.setInterval(INTERVAL_REAKSI_MS)
@@ -137,6 +162,66 @@ class CocoWidget(QWidget):
         self._frame_index = 0
         self._show_frame()
         self.bubble_label.setText(self._teks_gelembung)
+
+    # --- perayaan: Coco melompat dan berkata sesuatu (tonggak streak, log, task) ---
+
+    def mulai_perayaan(self, teks: str, durasi_ms: int) -> None:
+        """Mainkan frame lompat dan tampilkan `teks` selama `durasi_ms`.
+
+        Satu mesin untuk ketiga jenis perayaan. Reaksi klik yang sedang berjalan
+        dihentikan. Tidak menyentuh database.
+        """
+        self.reaksi_timer.stop()
+        self.bereaksi = False
+        self.merayakan = True
+        self._frame_index = 0
+        self.animation_timer.setInterval(INTERVAL_LOMPAT_MS)
+        self._show_frame()
+        self.bubble_label.setText(teks)
+        self.perayaan_timer.start(durasi_ms)
+
+    def selesai_perayaan(self) -> None:
+        """Kembali ke animasi kondisi dan kalimat terakhir dari refresh."""
+        self.merayakan = False
+        self.animation_timer.setInterval(ANIMATION_INTERVAL_MS)
+        self._frame_index = 0
+        self._show_frame()
+        self.bubble_label.setText(self._teks_gelembung)
+
+    def _rayakan(self, perayaan: Perayaan, now: datetime) -> None:
+        if perayaan.jenis == "tonggak":
+            teks = pesan_perayaan(perayaan.tonggak)
+        elif perayaan.jenis == "log":
+            teks = pesan_perayaan_log(now)
+        else:
+            teks = pesan_perayaan_task(perayaan.judul, now)
+        self.mulai_perayaan(teks, DURASI_PERAYAAN_MS[perayaan.jenis])
+
+    def _status_log(self, now: datetime) -> tuple[bool, int] | None:
+        """(log hari ini valid?, streak) pada tanggal `now`; None bila gagal dibaca."""
+        try:
+            log = get_daily_log(self.conn, now.strftime(DATE_FORMAT))
+            streak = get_streak(self.conn, now.date())
+        except sqlite3.Error:
+            return None  # tanpa perayaan; pesan error sudah ditangani refresh
+        valid = log is not None and log["claude_code"] == 1 and log["github"] == 1
+        return valid, streak
+
+    def _rayakan_log(self) -> None:
+        """Setelah form log tersimpan: bandingkan status log sebelum dan sesudahnya."""
+        now, sebelum = self._log_sebelum
+        sesudah = self._status_log(now)
+        if sebelum is None or sesudah is None:
+            return
+        perayaan = jenis_perayaan_log(sebelum[0], sesudah[0], sebelum[1], sesudah[1])
+        if perayaan is not None:
+            self._rayakan(perayaan, now)
+
+    def _rayakan_task(self) -> None:
+        """Setelah form Selesaikan task tersimpan: rayakan task yang diselesaikan."""
+        form = self.sender()  # form yang memancarkan sinyal accepted
+        if form.judul_selesai is not None:
+            self._rayakan(Perayaan("task", judul=form.judul_selesai), datetime.now())
 
     # --- mouse: seret untuk menggeser, klik untuk reaksi, klik dua kali untuk log ---
 
@@ -176,13 +261,25 @@ class CocoWidget(QWidget):
         menu.exec(event.globalPos())
 
     def buka_form_log(self) -> FormLogHarian:
-        return self._buka_form(FormLogHarian(self.conn, datetime.now(), self))
+        now = datetime.now()
+        # Status log dan streak dicatat sebelum form diisi, lalu dibandingkan dengan
+        # sesudah disimpan untuk menentukan perayaan. Tanggal sama dengan tanggal form.
+        # Form modal, jadi hanya ada satu form log yang terbuka pada satu waktu.
+        self._log_sebelum = (now, self._status_log(now))
+        form = self._buka_form(FormLogHarian(self.conn, now, self))
+        # Dihubungkan setelah refresh (di _buka_form), jadi refresh jalan lebih dulu.
+        # Method terikat, bukan lambda: lambda yang memegang self membuat widget ikut
+        # terhapus saat form (anaknya) dihapus, lalu program crash.
+        form.accepted.connect(self._rayakan_log)
+        return form
 
     def buka_form_tambah_task(self) -> FormTambahTask:
         return self._buka_form(FormTambahTask(self.conn, self))
 
     def buka_form_selesai(self) -> FormSelesaikanTask:
-        return self._buka_form(FormSelesaikanTask(self.conn, self))
+        form = self._buka_form(FormSelesaikanTask(self.conn, self))
+        form.accepted.connect(self._rayakan_task)  # method terikat, lihat buka_form_log
+        return form
 
     def _buka_form(self, form):
         # Widget menjadi parent form, supaya form tampil di depan Coco yang always on top.

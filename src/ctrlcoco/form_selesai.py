@@ -16,6 +16,8 @@ from ctrlcoco.data import complete_task, list_todo_untuk_selesai
 from ctrlcoco.form_task import ERROR_STYLE
 
 TEKS_KOSONG = "Tidak ada task yang perlu diselesaikan"
+# Tempat menyimpan judul di tiap baris daftar, di samping id (Qt.UserRole).
+_PERAN_JUDUL = Qt.UserRole + 1
 
 
 class FormSelesaikanTask(QDialog):
@@ -30,6 +32,8 @@ class FormSelesaikanTask(QDialog):
         super().__init__(parent)
         self.conn = conn
         self.now = now  # None: complete_task memakai datetime.now()
+        # Judul task yang berhasil diselesaikan; dibaca widget untuk perayaan (#93).
+        self.judul_selesai = None
         self.setWindowTitle("Selesaikan task")
         # Dihapus dari memori setelah ditutup, supaya tidak menumpuk.
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -81,6 +85,7 @@ class FormSelesaikanTask(QDialog):
             deadline = t["deadline"] or "tanpa deadline"
             item = QListWidgetItem(f"{t['title']} · {t['area']} · {deadline}")
             item.setData(Qt.UserRole, t["id"])  # id disimpan, tidak ditampilkan
+            item.setData(_PERAN_JUDUL, t["title"])
             self.daftar.addItem(item)
         self.daftar.setVisible(bool(tasks))
         self.kosong_label.setVisible(not tasks)
@@ -108,6 +113,7 @@ class FormSelesaikanTask(QDialog):
             # Daftar tidak dimuat ulang: pilihan tetap ada supaya bisa dicoba lagi.
             self._tampilkan_error(f"Gagal menyimpan ke database: {e}")
             return
+        self.judul_selesai = dipilih[0].data(_PERAN_JUDUL)
         self.accept()
 
     def _tampilkan_error(self, pesan: str) -> None:
