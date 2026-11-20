@@ -13,7 +13,9 @@ from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS
+from ctrlcoco.pesan import pesan_coco
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
+from ctrlcoco.streak import get_streak
 from ctrlcoco.widget import ANIMATION_INTERVAL_MS, REFRESH_INTERVAL_MS, CocoWidget
 
 NOW = datetime(2026, 3, 10, 9, 30)
@@ -54,20 +56,57 @@ def warna_gambar(widget):
 
 def test_widget_kosong(app, conn):
     w = CocoWidget(conn)
-    assert w.streak_label.text() == "Streak: 0 hari"
-    assert w.task_label.text() == "Tidak ada task berdeadline"
+    w.refresh(NOW)
+    assert w.bubble_label.text() == pesan_coco("tidur", 0, None, NOW)
 
 
-def test_widget_menampilkan_streak_dan_task_terdekat(app, conn):
-    today = date.today()
-    data.set_daily_log(conn, today.isoformat(), True, True)
-    data.set_daily_log(conn, (today - timedelta(days=1)).isoformat(), True, True)
-    area_id = data.add_area(conn, "Kuliah")
-    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+@pytest.mark.parametrize("mood", MOODS)
+def test_gelembung_berisi_pesan_coco(app, conn, mood):
+    siapkan_kondisi(conn, mood)
+    data.set_daily_log(conn, "2026-03-09", True, True)  # streak kemarin
     w = CocoWidget(conn)
-    assert w.streak_label.text() == "Streak: 2 hari"
-    assert "Laporan" in w.task_label.text()
-    assert "2099-01-01 10:00" in w.task_label.text()
+    w.refresh(NOW)
+    harapan = pesan_coco(mood, get_streak(conn, NOW.date()), data.get_nearest_task(conn), NOW)
+    assert w.mood == mood
+    assert w.bubble_label.text() == harapan
+
+
+def test_gelembung_waspada_menyebut_judul_dan_sisa_waktu(app, conn):
+    siapkan_kondisi(conn, "waspada")  # Laporan, deadline 18:00; NOW 09:30
+    w = CocoWidget(conn)
+    w.refresh(NOW)
+    assert '"Laporan" deadline 8 jam lagi' in w.bubble_label.text()
+
+
+def test_gelembung_senang_menyebut_streak(app, conn):
+    data.set_daily_log(conn, "2026-03-09", True, True)
+    data.set_daily_log(conn, "2026-03-10", True, True)
+    w = CocoWidget(conn)
+    w.refresh(NOW)
+    assert "streak 2 hari" in w.bubble_label.text().lower()
+
+
+def test_judul_berisi_tag_html_tampil_apa_adanya(app, conn):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "<b>tebal</b>", deadline="2026-03-10 18:00", now=NOW)
+    w = CocoWidget(conn)
+    w.refresh(NOW)
+    # Teks biasa, bukan HTML: tag tidak membuat huruf tebal, tetapi tampil sebagai teks.
+    assert w.bubble_label.textFormat() == Qt.TextFormat.PlainText
+    assert "<b>tebal</b>" in w.bubble_label.text()
+
+
+def test_gelembung_membungkus_kalimat_panjang(app, conn):
+    w = CocoWidget(conn)
+    assert w.bubble_label.wordWrap()
+    # Tanpa batas lebar, word wrap tidak berguna: label akan melebar mengikuti teks.
+    assert w.bubble_label.maximumWidth() == widget_module.LEBAR_GELEMBUNG
+
+
+def test_gelembung_di_atas_coco(app, conn):
+    w = CocoWidget(conn)
+    layout = w.layout()
+    assert layout.indexOf(w.bubble_label) < layout.indexOf(w.image_label)
 
 
 def test_widget_tanpa_bingkai_dan_selalu_di_atas(app, conn):
@@ -79,9 +118,8 @@ def test_widget_tanpa_bingkai_dan_selalu_di_atas(app, conn):
 def test_widget_latar_transparan_dan_teks_berpanel(app, conn):
     w = CocoWidget(conn)
     assert w.testAttribute(Qt.WA_TranslucentBackground)
-    for label in (w.streak_label, w.task_label):
-        assert "color: white" in label.styleSheet()
-        assert "rgba(0, 0, 0" in label.styleSheet()
+    assert "color: white" in w.bubble_label.styleSheet()
+    assert "rgba(0, 0, 0" in w.bubble_label.styleSheet()
 
 
 # --- gambar sesuai kondisi ---
@@ -142,7 +180,7 @@ def test_refresh_mengganti_ekspresi_dan_mulai_dari_frame_pertama(app, conn, spri
     w.refresh(NOW)
     assert w.mood == "senang"
     assert warna_gambar(w) == WARNA_SPRITE["senang"][0]
-    assert w.streak_label.text() == "Streak: 1 hari"
+    assert w.bubble_label.text() == pesan_coco("senang", 1, None, NOW)
 
 
 def test_refresh_dengan_kondisi_sama_tidak_mengulang_animasi(app, conn, sprite_dir):
@@ -167,11 +205,11 @@ def test_timer_refresh_berjalan_dan_membaca_ulang_data(app, conn, sprite_dir):
     w = CocoWidget(conn, sprite_dir=sprite_dir)
     assert w.refresh_timer.isActive()
     assert w.refresh_timer.interval() == REFRESH_INTERVAL_MS
-    assert w.streak_label.text() == "Streak: 0 hari"
+    assert "Belum ada log hari ini" in w.bubble_label.text()
 
     data.set_daily_log(conn, date.today().isoformat(), True, True)
     w.refresh_timer.timeout.emit()  # satu detak timer, tanpa menunggu
-    assert w.streak_label.text() == "Streak: 1 hari"
+    assert "streak 1 hari" in w.bubble_label.text().lower()
     assert w.mood == "senang"
 
 
@@ -196,20 +234,17 @@ def test_refresh_gagal_menampilkan_tanda_lalu_pulih(app, conn, sprite_dir):
     data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
     koneksi = KoneksiBisaGagal(conn)
     w = CocoWidget(koneksi, sprite_dir=sprite_dir)
-    assert w.streak_label.text() == "Streak: 1 hari"
+    assert "streak 1 hari" in w.bubble_label.text().lower()
 
     koneksi.error = sqlite3.OperationalError("database is locked")
     w.refresh_timer.timeout.emit()
-    # Angka lama tidak boleh tetap tampil seolah masih benar.
-    assert "gagal dimuat" in w.streak_label.text()
-    assert "Streak" not in w.streak_label.text()
-    assert w.task_label.text() == ""
+    # Kalimat lama tidak boleh tetap tampil seolah masih benar.
+    assert w.bubble_label.text() == "Data gagal dimuat"
     assert w.refresh_timer.isActive()
 
     koneksi.error = None
     w.refresh_timer.timeout.emit()
-    assert w.streak_label.text() == "Streak: 1 hari"
-    assert "Laporan" in w.task_label.text()
+    assert "streak 1 hari" in w.bubble_label.text().lower()
 
 
 def test_refresh_saat_database_terkunci_sungguhan_lalu_pulih(app, tmp_path, sprite_dir):
@@ -223,21 +258,19 @@ def test_refresh_saat_database_terkunci_sungguhan_lalu_pulih(app, tmp_path, spri
     data.add_task(c, area_id, "Laporan", deadline="2099-01-01 10:00")
     w = CocoWidget(c, sprite_dir=sprite_dir)
     try:
-        assert w.streak_label.text() == "Streak: 1 hari"
+        assert "streak 1 hari" in w.bubble_label.text().lower()
 
         lain = sqlite3.connect(path, isolation_level=None)
         lain.execute("BEGIN EXCLUSIVE")
         try:
             w.refresh_timer.timeout.emit()
-            assert w.streak_label.text() == "Data gagal dimuat"
-            assert w.task_label.text() == ""
+            assert w.bubble_label.text() == "Data gagal dimuat"
         finally:
             lain.rollback()
             lain.close()
 
         w.refresh_timer.timeout.emit()
-        assert w.streak_label.text() == "Streak: 1 hari"
-        assert "Laporan" in w.task_label.text()
+        assert "streak 1 hari" in w.bubble_label.text().lower()
     finally:
         w.close()
         c.close()
@@ -247,7 +280,7 @@ def test_refresh_pertama_gagal_coco_tidur(app, conn, sprite_dir):
     koneksi = KoneksiBisaGagal(conn)
     koneksi.error = sqlite3.OperationalError("database is locked")
     w = CocoWidget(koneksi, sprite_dir=sprite_dir)
-    assert "gagal dimuat" in w.streak_label.text()
+    assert w.bubble_label.text() == "Data gagal dimuat"
     assert w.mood == "tidur"
     assert warna_gambar(w) == WARNA_SPRITE["tidur"][0]
     w.next_frame()  # timer animasi tidak boleh crash
@@ -344,7 +377,7 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
 
 def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypatch):
     w = CocoWidget(conn)
-    assert w.streak_label.text() == "Streak: 0 hari"
+    assert "Belum ada log hari ini" in w.bubble_label.text()
     assert w.mood == "tidur"
 
     picu_aksi(w, monkeypatch, "Log hari ini…")
@@ -355,7 +388,7 @@ def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypat
     form.tombol_simpan.click()
 
     # Tanpa menunggu timer refresh: streak dan kondisi Coco langsung berubah.
-    assert w.streak_label.text() == "Streak: 1 hari"
+    assert "streak 1 hari" in w.bubble_label.text().lower()
     assert w.mood == "senang"
     assert form_sudah_dihapus(w, FormLogHarian)
 
@@ -366,7 +399,7 @@ def test_selesaikan_task_membuka_form_dan_widget_langsung_refresh(app, conn, mon
     data.add_task(conn, area_id, "Kuis", deadline=mepet)
     data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
     w = CocoWidget(conn)
-    assert w.task_label.text() == f"Kuis\n{mepet}"
+    assert '"Kuis"' in w.bubble_label.text()
     assert w.mood == "waspada"
 
     picu_aksi(w, monkeypatch, "Selesaikan task…")
@@ -374,8 +407,8 @@ def test_selesaikan_task_membuka_form_dan_widget_langsung_refresh(app, conn, mon
     form.daftar.setCurrentRow(0)  # Kuis, deadline paling awal
     form.tombol_selesai.click()
 
-    # Task yang selesai hilang dari task terdekat, dan Coco tidak waspada lagi.
-    assert w.task_label.text() == "Laporan\n2099-01-01 10:00"
+    # Task yang selesai hilang dari gelembung, dan Coco tidak waspada lagi.
+    assert "Kuis" not in w.bubble_label.text()
     assert w.mood == "tidur"
     assert form_sudah_dihapus(w, FormSelesaikanTask)
 
@@ -389,7 +422,7 @@ def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeyp
 
     monkeypatch.setattr(widget_module, "QMenu", MenuTiruan)
     w = CocoWidget(conn)
-    assert w.task_label.text() == "Tidak ada task berdeadline"
+    assert w.mood == "tidur"
 
     w.contextMenuEvent(QContextMenuEvent(QContextMenuEvent.Mouse, QPoint(5, 5), QPoint(5, 5)))
     aksi = [a for a in menu_dibuka[0].actions() if a.text() == "Tambah task…"]
@@ -406,8 +439,9 @@ def test_tambah_task_membuka_form_dan_widget_langsung_refresh(app, conn, monkeyp
     form.deadline_edit.setText("2026-03-12 23:59")
     form.tombol_simpan.click()
 
-    # Tanpa menunggu timer refresh: task baru langsung terlihat.
-    assert w.task_label.text() == "Laporan praktikum\n2026-03-12 23:59"
+    # Tanpa menunggu timer refresh: task baru langsung terlihat (deadline sudah lewat).
+    assert '"Laporan praktikum" sudah terlambat' in w.bubble_label.text()
+    assert w.mood == "waspada"
     # WA_DeleteOnClose: setelah Qt memproses penghapusan, form tidak tertinggal di memori.
     QApplication.sendPostedEvents(None, QEvent.DeferredDelete)
     assert w.findChildren(FormTambahTask) == []
