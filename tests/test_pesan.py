@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 
 from ctrlcoco import pesan
-from ctrlcoco.pesan import pesan_coco, pesan_reaksi, teks_sisa_waktu
+from ctrlcoco.pesan import (
+    pesan_coco,
+    pesan_perayaan,
+    pesan_perayaan_log,
+    pesan_perayaan_task,
+    pesan_reaksi,
+    teks_sisa_waktu,
+)
 
 NOW = datetime(2026, 3, 10, 9, 30)
 
@@ -177,3 +184,51 @@ def test_modul_pesan_tidak_mengimpor_pyside6():
         elif isinstance(node, ast.ImportFrom) and node.module:
             modul.add(node.module.split(".")[0])
     assert "PySide6" not in modul
+
+
+# --- kalimat perayaan ---
+
+@pytest.mark.parametrize(
+    "tonggak, kalimat",
+    [
+        (3, "Yeay! Streak 3 hari! Awal yang bagus."),
+        (7, "Seminggu penuh! Streak 7 hari!"),
+        (14, "Dua minggu berturut-turut! Streak 14 hari!"),
+        (30, "Luar biasa, streak 30 hari! Sebulan penuh!"),
+    ],
+)
+def test_pesan_perayaan_tonggak_menyebut_angka(tonggak, kalimat):
+    assert pesan_perayaan(tonggak) == kalimat
+    assert str(tonggak) in kalimat
+
+
+@pytest.mark.parametrize("tonggak", [0, 5, 31])
+def test_pesan_perayaan_tonggak_tidak_dikenal_ditolak(tonggak):
+    with pytest.raises(ValueError):
+        pesan_perayaan(tonggak)
+
+
+def test_pesan_perayaan_log_dua_variasi_bergantian_per_hari():
+    hari_ini = pesan_perayaan_log(NOW)
+    besok = pesan_perayaan_log(NOW + timedelta(days=1))
+    assert {hari_ini, besok} == {"Log hari ini lengkap. Mantap!", "Yes! Log hari ini beres."}
+    assert pesan_perayaan_log(NOW.replace(hour=22)) == hari_ini  # sama sepanjang hari
+
+
+@pytest.mark.parametrize("hari_ke", [0, 1], ids=["hari_ini", "besok"])
+def test_pesan_perayaan_task_menyebut_judul(hari_ke):
+    kalimat = pesan_perayaan_task("Laporan", NOW + timedelta(days=hari_ke))
+    assert '"Laporan"' in kalimat
+
+
+def test_pesan_perayaan_task_dua_variasi_dan_tetap_sepanjang_hari():
+    hari_ini = pesan_perayaan_task("Laporan", NOW)
+    assert pesan_perayaan_task("Laporan", NOW.replace(hour=22)) == hari_ini
+    assert pesan_perayaan_task("Laporan", NOW + timedelta(days=1)) != hari_ini
+
+
+def test_pesan_perayaan_task_judul_panjang_dipotong():
+    judul = "a" * 40 + "b"
+    kalimat = pesan_perayaan_task(judul, NOW)
+    assert f'"{"a" * 39}…"' in kalimat
+    assert "b" not in kalimat.split('"')[1]
