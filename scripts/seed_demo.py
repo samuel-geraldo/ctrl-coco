@@ -21,7 +21,10 @@ def demo_db_path() -> Path:
 
 
 def seed(conn, today: datetime | None = None) -> bool:
-    """Isi data contoh. Mengembalikan False (tanpa menulis apa pun) jika database sudah berisi data."""
+    """Isi data contoh.
+
+    Mengembalikan False (tanpa menulis apa pun) jika database sudah berisi data.
+    """
     # Periksa ketiga tabel: log harian bisa ada walaupun area belum pernah dibuat.
     sudah_berisi = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM area)"

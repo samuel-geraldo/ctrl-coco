@@ -146,7 +146,9 @@ def _cari_pelanggaran(conn: sqlite3.Connection, ada: set[str]) -> list[str]:
             f"SELECT {kunci}, {kolom} FROM {nama}"
             f" WHERE {kolom} IS NOT NULL AND NOT ({cek.format(kolom=kolom)})"
         ).fetchall()
-        masalah += [f"{nama}.{kunci}={b[0]!r} {kolom}={b[1]!r} (format tanggal salah)" for b in baris]
+        masalah += [
+            f"{nama}.{kunci}={b[0]!r} {kolom}={b[1]!r} (format tanggal salah)" for b in baris
+        ]
 
     for nama, kolom in _CEK_NAMA_MIGRASI:
         if nama not in ada:
@@ -220,7 +222,8 @@ def _migrasi(conn: sqlite3.Connection) -> None:
             yatim = conn.execute("PRAGMA foreign_key_check").fetchall()
             if yatim:
                 raise ValueError(
-                    "Database tidak bisa diperbarui; baris berikut menunjuk ke baris yang tidak ada. "
+                    "Database tidak bisa diperbarui; "
+                    "baris berikut menunjuk ke baris yang tidak ada. "
                     "Perbaiki dulu (misalnya dengan DB Browser for SQLite): "
                     + "; ".join(f"{r[0]}.id={r[1]} (tidak ada di tabel {r[2]})" for r in yatim)
                 )

@@ -19,7 +19,9 @@ def pesan(monkeypatch):
 def exec_dipanggil(monkeypatch):
     """Ganti QApplication.exec: catat panggilannya, jangan masuk event loop."""
     dipanggil = []
-    monkeypatch.setattr(QApplication, "exec", staticmethod(lambda *args: dipanggil.append(True) or 0))
+    monkeypatch.setattr(
+        QApplication, "exec", staticmethod(lambda *args: dipanggil.append(True) or 0)
+    )
     return dipanggil
 
 
@@ -77,7 +79,10 @@ def test_main_tanpa_db_memakai_folder_appdata(app, tmp_path, monkeypatch, pesan,
 
 
 def jalankan_dan_harus_gagal(path, pesan, exec_dipanggil):
-    """Jalankan main dengan --db path; pastikan gagal dengan pesan, lalu kembalikan teks pesannya."""
+    """Jalankan main dengan --db path; pastikan gagal dengan pesan.
+
+    Lalu kembalikan teks pesannya.
+    """
     kode = titik_masuk.main(["--db", str(path)])
     assert kode != 0
     assert not exec_dipanggil
@@ -103,7 +108,9 @@ def test_startup_file_bukan_database(app, tmp_path, pesan, exec_dipanggil, konek
     assert all(sudah_ditutup(c) for c in koneksi_dibuka)
 
 
-def test_startup_database_lama_bertanggal_rusak(app, tmp_path, pesan, exec_dipanggil, koneksi_dibuka):
+def test_startup_database_lama_bertanggal_rusak(
+    app, tmp_path, pesan, exec_dipanggil, koneksi_dibuka
+):
     # Database lama (user_version 0) tanpa CHECK, berisi tanggal berformat salah:
     # migrasi di init_db menolaknya dengan ValueError.
     path = tmp_path / "lama.db"
@@ -122,7 +129,9 @@ def test_startup_database_lama_bertanggal_rusak(app, tmp_path, pesan, exec_dipan
     assert sudah_ditutup(koneksi_dibuka[0])
 
 
-def test_startup_database_terkunci(app, tmp_path, monkeypatch, pesan, exec_dipanggil, koneksi_dibuka):
+def test_startup_database_terkunci(
+    app, tmp_path, monkeypatch, pesan, exec_dipanggil, koneksi_dibuka
+):
     # Kunci sungguhan (BEGIN EXCLUSIVE) membuat tes menunggu timeout; cukup tiru errornya.
     def init_db_terkunci(conn):
         raise sqlite3.OperationalError("database is locked")

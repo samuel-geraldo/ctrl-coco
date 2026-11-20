@@ -82,7 +82,9 @@ def test_simpan_area_baru(form, conn):
     ],
     ids=["deadline_salah", "judul_kosong", "area_kosong"],
 )
-def test_error_validasi_tampil_di_form_dan_form_tetap_terbuka(form, conn, area, judul, deadline, pesan):
+def test_error_validasi_tampil_di_form_dan_form_tetap_terbuka(
+    form, conn, area, judul, deadline, pesan
+):
     sebelum = isi_database(conn)
     isi(form, area, judul, deadline)
     form.tombol_simpan.click()
