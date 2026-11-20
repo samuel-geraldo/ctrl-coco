@@ -72,6 +72,21 @@ def pesan_coco(
     raise ValueError(f"Kondisi Coco tidak dikenal: {kondisi!r}")
 
 
+# Kalimat saat Coco diklik, satu per kondisi.
+_REAKSI = {
+    "waspada": "Iya, iya! Deadline-nya tetap jalan, lho.",
+    "senang": "Hehe, geli!",
+    "tidur": "Hoaam... eh, aku bangun! Sudah catat log?",
+}
+
+
+def pesan_reaksi(kondisi: str) -> str:
+    """Kalimat gelembung saat Coco diklik."""
+    if kondisi not in _REAKSI:
+        raise ValueError(f"Kondisi Coco tidak dikenal: {kondisi!r}")
+    return _REAKSI[kondisi]
+
+
 def _indeks_variasi(hari: date) -> int:
     # Nomor urut hari (toordinal) bergantian genap-ganjil: 0 hari ini, 1 besok, dst.
     return hari.toordinal() % 2

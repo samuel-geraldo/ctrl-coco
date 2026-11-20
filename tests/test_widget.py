@@ -2,8 +2,8 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QEvent, QPoint, Qt
-from PySide6.QtGui import QColor, QContextMenuEvent, QPixmap
+from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+from PySide6.QtGui import QColor, QContextMenuEvent, QMouseEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu
 
@@ -13,10 +13,16 @@ from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
 from ctrlcoco.mood import MOODS
-from ctrlcoco.pesan import pesan_coco
+from ctrlcoco.pesan import pesan_coco, pesan_reaksi
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.streak import get_streak
-from ctrlcoco.widget import ANIMATION_INTERVAL_MS, REFRESH_INTERVAL_MS, CocoWidget
+from ctrlcoco.widget import (
+    ANIMATION_INTERVAL_MS,
+    DURASI_REAKSI_MS,
+    INTERVAL_REAKSI_MS,
+    REFRESH_INTERVAL_MS,
+    CocoWidget,
+)
 
 NOW = datetime(2026, 3, 10, 9, 30)
 
@@ -305,6 +311,126 @@ def test_seret_memindahkan_jendela(app, conn):
     QTest.mouseMove(w, QPoint(60, 40))  # 50 ke kanan, 30 ke bawah
     QTest.mouseRelease(w, Qt.LeftButton, pos=QPoint(60, 40))
     assert w.pos() == QPoint(150, 130)
+    # Seret bukan klik: Coco tidak bereaksi.
+    assert not w.bereaksi
+    assert not w.reaksi_timer.isActive()
+
+
+# --- klik: reaksi dan log cepat ---
+
+def coco_siap_diklik(conn, sprite_dir):
+    """Widget yang sudah tampil, dengan isi gelembung yang diketahui (refresh di NOW)."""
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    w.move(100, 100)
+    w.show()
+    w.refresh(NOW)
+    return w
+
+
+def test_klik_tanpa_gerak_memicu_reaksi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+
+    assert w.bereaksi
+    assert w.reaksi_timer.isActive()
+    assert w.reaksi_timer.isSingleShot()
+    assert w.reaksi_timer.interval() == DURASI_REAKSI_MS
+    # Coco bergoyang: animasi kondisinya diputar lebih cepat.
+    assert w.animation_timer.interval() == INTERVAL_REAKSI_MS
+    assert w.bubble_label.text() == pesan_reaksi("tidur")
+
+
+def test_klik_dengan_gerak_di_bawah_ambang_tetap_reaksi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mousePress(w, Qt.LeftButton, pos=QPoint(10, 10))
+    QTest.mouseMove(w, QPoint(13, 14))  # 3 ke kanan, 4 ke bawah: jarak 7 < 10
+    # Jendela ikut bergeser, jadi kursor tetap di titik yang sama pada widget.
+    QTest.mouseRelease(w, Qt.LeftButton, pos=QPoint(10, 10))
+    assert w.pos() == QPoint(103, 104)
+    assert w.bereaksi
+
+
+def test_setelah_reaksi_kembali_ke_animasi_kondisi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    w.next_frame()
+    assert warna_gambar(w) == WARNA_SPRITE["tidur"][1]
+
+    w.reaksi_timer.timeout.emit()  # reaksi selesai, tanpa menunggu 1 detik
+
+    assert not w.bereaksi
+    assert w.animation_timer.interval() == ANIMATION_INTERVAL_MS
+    assert warna_gambar(w) == WARNA_SPRITE["tidur"][0]  # mulai dari frame pertama
+    assert w.bubble_label.text() == pesan_coco("tidur", 0, None, NOW)
+
+
+def test_klik_saat_reaksi_memulai_ulang_reaksi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    w.reaksi_timer.stop()  # anggap hitungan hampir habis
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    assert w.reaksi_timer.isActive()
+    assert w.bereaksi
+
+
+def test_refresh_saat_reaksi_tidak_memotong_reaksi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+
+    data.set_daily_log(conn, "2026-03-10", True, True)
+    w.refresh(NOW)
+    assert w.bereaksi
+    assert w.bubble_label.text() == pesan_reaksi("tidur")
+
+    w.reaksi_timer.timeout.emit()
+    # Setelah reaksi selesai, yang tampil kondisi dan kalimat terbaru.
+    assert w.mood == "senang"
+    assert warna_gambar(w) == WARNA_SPRITE["senang"][0]
+    assert w.bubble_label.text() == pesan_coco("senang", 1, None, NOW)
+
+
+def test_setelah_reaksi_data_gagal_dimuat_tetap_tampil(app, conn, sprite_dir):
+    koneksi = KoneksiBisaGagal(conn)
+    w = CocoWidget(koneksi, sprite_dir=sprite_dir)
+    w.show()
+    koneksi.error = sqlite3.OperationalError("database is locked")
+    w.refresh(NOW)
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    assert w.bubble_label.text() == pesan_reaksi("tidur")
+    w.reaksi_timer.timeout.emit()
+    assert w.bubble_label.text() == "Data gagal dimuat"
+
+
+def test_klik_tidak_mengubah_database(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    sebelum = conn.total_changes
+    QTest.mouseClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    w.reaksi_timer.timeout.emit()
+    assert conn.total_changes == sebelum
+
+
+def test_klik_dua_kali_membuka_form_log(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    QTest.mouseDClick(w, Qt.LeftButton, pos=QPoint(10, 10))
+    form = satu_form(w, FormLogHarian)
+    assert form.tanggal == date.today().isoformat()
+    form.close()
+
+
+def test_klik_kanan_tidak_memicu_reaksi(app, conn, sprite_dir):
+    w = coco_siap_diklik(conn, sprite_dir)
+    # Event dikirim langsung ke handler: QTest.mouseClick kanan bisa membuka menu
+    # sungguhan yang menunggu klik.
+    for jenis in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease):
+        posisi = QPointF(10, 10)
+        event = QMouseEvent(
+            jenis, posisi, w.mapToGlobal(posisi), Qt.RightButton, Qt.RightButton, Qt.NoModifier
+        )
+        if jenis == QEvent.MouseButtonPress:
+            w.mousePressEvent(event)
+        else:
+            w.mouseReleaseEvent(event)
+    assert not w.bereaksi
 
 
 def test_menu_klik_kanan_punya_keluar(app, conn, monkeypatch):

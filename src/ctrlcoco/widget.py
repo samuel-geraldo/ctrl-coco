@@ -9,12 +9,15 @@ from ctrlcoco.data import get_nearest_task
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
+from ctrlcoco.klik import adalah_klik
 from ctrlcoco.mood import MOODS, get_mood
-from ctrlcoco.pesan import pesan_coco
+from ctrlcoco.pesan import pesan_coco, pesan_reaksi
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
 
 ANIMATION_INTERVAL_MS = 500   # jarak antar frame animasi
+INTERVAL_REAKSI_MS = 120      # jarak antar frame saat bereaksi (Coco bergoyang cepat)
+DURASI_REAKSI_MS = 1000       # lama reaksi setelah Coco diklik
 REFRESH_INTERVAL_MS = 60_000  # jarak antar pembacaan ulang database
 LEBAR_GELEMBUNG = 200         # lebar maksimum gelembung; kalimat lebih panjang turun baris
 
@@ -29,6 +32,9 @@ class CocoWidget(QWidget):
         super().__init__()
         self.conn = conn
         self._drag_offset = None
+        self._posisi_tekan = None  # posisi layar saat tombol kiri ditekan (klik vs seret)
+        self.bereaksi = False
+        self._teks_gelembung = ""  # kalimat terakhir dari refresh, tampil lagi setelah reaksi
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         # Latar jendela tembus pandang; hanya gambar Coco dan gelembung yang terlihat.
@@ -69,6 +75,12 @@ class CocoWidget(QWidget):
         self.refresh_timer.timeout.connect(self.refresh)
         self.refresh_timer.start(REFRESH_INTERVAL_MS)
 
+        # Timer reaksi: sekali jalan, mengakhiri reaksi klik.
+        self.reaksi_timer = QTimer(self)
+        self.reaksi_timer.setSingleShot(True)
+        self.reaksi_timer.setInterval(DURASI_REAKSI_MS)
+        self.reaksi_timer.timeout.connect(self.selesai_reaksi)
+
     def refresh(self, now: datetime | None = None) -> None:
         """Baca ulang data dari database, lalu perbarui gelembung dan kondisi Coco."""
         now = now or datetime.now()
@@ -81,12 +93,12 @@ class CocoWidget(QWidget):
         except sqlite3.Error:
             # Misalnya database terkunci. Kalimat lama tidak ditampilkan seolah masih
             # benar. Timer refresh tetap berjalan, jadi detak berikutnya mencoba lagi.
-            self.bubble_label.setText("Data gagal dimuat")
+            self._atur_gelembung("Data gagal dimuat")
             if self.mood is not None:
                 return  # Coco tetap di kondisi terakhir
             mood = "tidur"  # refresh pertama gagal: next_frame tetap butuh kondisi
         else:
-            self.bubble_label.setText(pesan_coco(mood, streak, task, now))
+            self._atur_gelembung(pesan_coco(mood, streak, task, now))
 
         if mood != self.mood:
             # Kondisi berganti: animasi kondisi baru mulai dari frame pertama.
@@ -102,18 +114,54 @@ class CocoWidget(QWidget):
     def _show_frame(self) -> None:
         self.image_label.setPixmap(self._frames[self.mood][self._frame_index])
 
-    # --- geser jendela dengan mouse ---
+    def _atur_gelembung(self, teks: str) -> None:
+        # Selama bereaksi, kalimat baru disimpan saja; tampil setelah reaksi selesai.
+        self._teks_gelembung = teks
+        if not self.bereaksi:
+            self.bubble_label.setText(teks)
+
+    # --- reaksi klik: Coco bergoyang cepat dan berkata sesuatu ---
+
+    def mulai_reaksi(self) -> None:
+        """Mulai (atau ulangi) reaksi klik. Tidak menyentuh database."""
+        self.bereaksi = True
+        self.bubble_label.setText(pesan_reaksi(self.mood))
+        self.animation_timer.setInterval(INTERVAL_REAKSI_MS)
+        self.reaksi_timer.start()  # bila sudah berjalan, hitungan mulai lagi dari awal
+
+    def selesai_reaksi(self) -> None:
+        """Kembali ke animasi kondisi dan kalimat terakhir dari refresh."""
+        self.bereaksi = False
+        self.animation_timer.setInterval(ANIMATION_INTERVAL_MS)
+        self._frame_index = 0
+        self._show_frame()
+        self.bubble_label.setText(self._teks_gelembung)
+
+    # --- mouse: seret untuk menggeser, klik untuk reaksi, klik dua kali untuk log ---
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            posisi = event.globalPosition().toPoint()
+            self._drag_offset = posisi - self.frameGeometry().topLeft()
+            self._posisi_tekan = posisi
 
     def mouseMoveEvent(self, event):
         if self._drag_offset is not None and event.buttons() & Qt.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_offset)
 
     def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton and self._posisi_tekan is not None:
+            tekan, lepas = self._posisi_tekan, event.globalPosition().toPoint()
+            if adalah_klik((tekan.x(), tekan.y()), (lepas.x(), lepas.y())):
+                self.mulai_reaksi()
         self._drag_offset = None
+        self._posisi_tekan = None
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            # Pelepasan tombol sesudah klik dua kali bukan klik baru.
+            self._posisi_tekan = None
+            self.buka_form_log()
 
     # --- klik kanan: log hari ini, tambah task, selesaikan task, keluar ---
 
