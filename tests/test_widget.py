@@ -521,9 +521,11 @@ def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypat
     form.github_check.setChecked(True)
     form.tombol_simpan.click()
 
-    # Tanpa menunggu timer refresh: streak dan kondisi Coco langsung berubah.
-    assert "streak 1 hari" in w.bubble_label.text().lower()
+    # Tanpa menunggu timer refresh: kondisi Coco langsung berubah. Log baru lengkap
+    # memicu perayaan (#93); setelah perayaan selesai, gelembung menyebut streak.
     assert w.mood == "senang"
+    w.perayaan_timer.timeout.emit()
+    assert "streak 1 hari" in w.bubble_label.text().lower()
     assert form_sudah_dihapus(w, FormLogHarian)
 
 
@@ -541,9 +543,11 @@ def test_selesaikan_task_membuka_form_dan_widget_langsung_refresh(app, conn, mon
     form.daftar.setCurrentRow(0)  # Kuis, deadline paling awal
     form.tombol_selesai.click()
 
-    # Task yang selesai hilang dari gelembung, dan Coco tidak waspada lagi.
-    assert "Kuis" not in w.bubble_label.text()
+    # Coco tidak waspada lagi. Task selesai memicu perayaan (#93); setelah perayaan
+    # selesai, task yang sudah selesai hilang dari gelembung.
     assert w.mood == "tidur"
+    w.perayaan_timer.timeout.emit()
+    assert "Kuis" not in w.bubble_label.text()
     assert form_sudah_dihapus(w, FormSelesaikanTask)
 
 
