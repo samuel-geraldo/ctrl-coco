@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from ctrlcoco import pesan
-from ctrlcoco.pesan import pesan_coco, teks_sisa_waktu
+from ctrlcoco.pesan import pesan_coco, pesan_reaksi, teks_sisa_waktu
 
 NOW = datetime(2026, 3, 10, 9, 30)
 
@@ -118,6 +118,25 @@ def test_tidur_dengan_streak_menyebut_streak_dan_mengajak_mencatat_log():
 def test_kondisi_tidak_dikenal_ditolak():
     with pytest.raises(ValueError):
         pesan_coco("marah", 0, None, NOW)
+
+
+# --- pesan_reaksi: kalimat saat Coco diklik ---
+
+@pytest.mark.parametrize(
+    "kondisi, kalimat",
+    [
+        ("waspada", "Iya, iya! Deadline-nya tetap jalan, lho."),
+        ("senang", "Hehe, geli!"),
+        ("tidur", "Hoaam... eh, aku bangun! Sudah catat log?"),
+    ],
+)
+def test_pesan_reaksi_per_kondisi(kondisi, kalimat):
+    assert pesan_reaksi(kondisi) == kalimat
+
+
+def test_pesan_reaksi_kondisi_tidak_dikenal_ditolak():
+    with pytest.raises(ValueError):
+        pesan_reaksi("marah")
 
 
 # --- variasi kalimat deterministik ---
