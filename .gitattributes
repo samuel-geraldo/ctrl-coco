@@ -1,0 +1,7 @@
+# Berkas teks disimpan dengan LF di repo.
+* text=auto eol=lf
+
+# Berkas biner: jangan diubah line ending-nya dan jangan di-diff sebagai teks.
+*.png binary
+*.ico binary
+*.piskel binary
