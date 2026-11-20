@@ -108,12 +108,14 @@ python -m ctrlcoco --db "%APPDATA%\CtrlCoco\demo.db"
 
 ## Sprite
 
-Widget membaca frame animasi dari `assets/sprites/<kondisi>_<n>.png`, misalnya `senang_1.png` dan `senang_2.png`, diurutkan menurut nomornya. Spesifikasinya:
+Widget membaca frame animasi dari `assets/sprites/<kondisi>_<n>.png`, misalnya `senang_1.png` dan `senang_2.png`, diurutkan menurut nomornya. Ringkasnya:
 
-- PNG 64×64 piksel dengan latar transparan
-- 2 sampai 4 frame per kondisi: `senang`, `waspada`, `tidur`
+- PNG 64×64 piksel dengan latar transparan, ditampilkan 3× (192×192) tanpa penghalusan
+- 2 frame untuk `senang`, `waspada`, dan `tidur`; 3 frame `lompat` untuk perayaan
 - Kondisi yang belum punya file memakai gambar sementara, jadi sebagian sprite boleh menyusul
 - Sprite baru terbaca saat widget dibuka ulang
+
+Aturan lengkap, palet warna, langkah menggambar di Piskel, dan cara mencobanya ada di [`docs/sprite.md`](docs/sprite.md).
 
 ## Struktur proyek
 
@@ -135,6 +137,7 @@ docs/
   erd.md             skema 3 tabel (Mermaid)
   user-stories.md    cerita pengguna per tahap
   keputusan.md       keputusan desain dan alasannya
+  sprite.md          panduan menggambar sprite Coco
 ```
 
 ### Pilihan desain yang sengaja
