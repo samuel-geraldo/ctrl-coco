@@ -106,6 +106,14 @@ python scripts/seed_demo.py
 python -m ctrlcoco --db "%APPDATA%\CtrlCoco\demo.db"
 ```
 
+Isinya data fiktif untuk 60 hari terakhir, selalu sama untuk tanggal yang sama:
+
+- 4 area dengan 21 task: Kuliah (6 dari 8 selesai), Portofolio (3 dari 6), Olahraga (4 dari 4), Bahasa Inggris (1 dari 3)
+- Task selesai tepat waktu, terlambat, dan tanpa deadline, serta task yang masih todo, termasuk satu berdeadline hari ini 23:59 sehingga Coco waspada
+- Log harian 60 hari dengan beberapa hari bolong: streak sekarang 6 hari (hari ini belum diisi), streak terpanjang 14 hari
+
+Untuk mengisi ulang, hapus `demo.db` lalu jalankan skripnya lagi.
+
 ## Sprite
 
 Widget membaca frame animasi dari `assets/sprites/<kondisi>_<n>.png`, misalnya `senang_1.png` dan `senang_2.png`, diurutkan menurut nomornya. Ringkasnya:
@@ -131,7 +139,7 @@ src/ctrlcoco/
   form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
 scripts/
-  seed_demo.py data contoh generik ke database terpisah
+  seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
 docs/
   erd.md             skema 3 tabel (Mermaid)
