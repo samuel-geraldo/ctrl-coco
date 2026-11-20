@@ -56,18 +56,19 @@ Kondisi yang belum punya berkas memakai gambar sementara (lingkaran berwarna), j
 | `senang` | 2 | `senang_1.png`, `senang_2.png` | log hari ini lengkap |
 | `waspada` | 2 | `waspada_1.png`, `waspada_2.png` | ada deadline kurang dari 24 jam atau sudah lewat |
 | `tidur` | 2 | `tidur_1.png`, `tidur_2.png` | selain itu |
-| `lompat` | 3 | `lompat_1.png` sampai `lompat_3.png` | perayaan (#93) |
+| `lompat` | 3 | `lompat_1.png` sampai `lompat_3.png` | perayaan: tonggak streak, log baru lengkap, task selesai |
 
 - Dua frame cukup untuk gerak sederhana, misalnya berkedip atau bernapas. Frame 2 sebaiknya hanya sedikit berbeda dari frame 1, supaya gerakannya halus.
 - `senang` boleh ditambah sampai 4 frame nanti. Bila jumlahnya diubah, perbarui tabel ini dan tes jumlah frame di #71.
-- Frame `lompat` baru dipakai setelah perayaan (#93) selesai dibuat; sebelum itu widget belum membacanya.
+- Selama `lompat_<n>.png` belum ada, perayaan memakai gambar sementara (lingkaran hijau).
 
 ## Kecepatan animasi
 
 - Biasa: frame berganti setiap **500 ms**. Dengan 2 frame, satu putaran animasi = 1 detik.
 - Saat Coco diklik (reaksi): frame kondisi yang sama diputar lebih cepat, setiap **120 ms**, selama 1 detik.
+- Saat merayakan: frame `lompat` berganti setiap **200 ms**. Dengan 3 frame, satu lompatan = 0,6 detik. Perayaan tonggak streak (3, 7, 14, 30 hari) berlangsung 3 detik; perayaan log baru lengkap dan task selesai 1,5 detik.
 
-Gambarlah dengan kecepatan ini dalam pikiran: di Piskel, atur pratinjau ke 2 FPS (frame per detik) untuk melihat kecepatan biasa.
+Gambarlah dengan kecepatan ini dalam pikiran: di Piskel, atur pratinjau ke 2 FPS (frame per detik) untuk melihat kecepatan biasa, dan 5 FPS untuk frame `lompat`.
 
 ## Palet warna Coco
 
