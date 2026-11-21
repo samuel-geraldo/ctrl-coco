@@ -54,3 +54,30 @@ def completion_rate_per_area(
         )
         for b in baris
     ]
+
+
+_SQL_ON_TIME = """
+SELECT COUNT(*) AS total,
+       COALESCE(SUM(completed_at <= deadline), 0) AS tepat_waktu
+FROM task
+WHERE status = 'done'
+  AND deadline IS NOT NULL
+  AND date(completed_at) BETWEEN ? AND ?
+"""
+
+
+def on_time_rate(conn: sqlite3.Connection, awal: date, akhir: date) -> float | None:
+    """Bagian task selesai yang selesai tepat waktu, gabungan semua area.
+
+    Pembilang: task `done` dengan `completed_at <= deadline` (selesai tepat pada deadline
+    dihitung tepat waktu). Penyebut: task `done` yang punya deadline; task tanpa deadline
+    tidak dihitung di keduanya. Kedua kolom berformat `YYYY-MM-DD HH:MM` (dijaga CHECK),
+    jadi urutan teksnya sama dengan urutan waktu.
+
+    Task masuk rentang menurut tanggal `completed_at` (awal dan akhir inklusif): hanya task
+    `done` yang dihitung, dan kolom itu yang menunjukkan kapan task selesai.
+    Hasil 0 sampai 1, atau `None` bila penyebutnya 0 (bukan 0, supaya "tidak ada data" tidak
+    terbaca "semua terlambat").
+    """
+    baris = conn.execute(_SQL_ON_TIME, (awal.isoformat(), akhir.isoformat())).fetchone()
+    return baris["tepat_waktu"] / baris["total"] if baris["total"] else None
