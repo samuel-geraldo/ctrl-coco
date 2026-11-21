@@ -33,3 +33,12 @@ Alasan:
 - 1 detik masih cukup untuk kunci yang singkat, misalnya skrip yang sedang menulis beberapa baris.
 - Bila kunci lebih lama, menunggu lebih lama tidak membantu: error-nya sudah ditangani di semua tempat (widget menampilkan "Data gagal dimuat" lalu mencoba lagi di refresh berikutnya; form menampilkan pesan dan tetap terbuka; startup menampilkan jendela error).
 - Tes memeriksa nilai `PRAGMA busy_timeout` secara langsung, bukan mengukur lamanya menunggu, karena tes yang bergantung pada jam rapuh di CI.
+
+## Analitik: kolom tanggal dan nilai kosong (#61)
+
+Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Semua fungsinya menerima rentang `awal` dan `akhir` bertipe `date`, keduanya inklusif, dengan SQL berparameter (`?`).
+
+- **Completion rate per area** menyaring task menurut tanggal `created_at`. Alasannya, penyebutnya memuat semua task (termasuk `todo`), dan hanya `created_at` yang selalu terisi. `deadline` boleh kosong dan `completed_at` hanya ada pada task `done`.
+- Hasilnya `selesai / total`, angka 0 sampai 1 (bukan persen). Bila `total` 0, nilainya `None`, bukan 0, supaya "tidak ada task" tidak terbaca "0% selesai".
+- Semua area dikembalikan, termasuk yang tanpa task di rentang (`rate = None`). Menyaringnya adalah urusan tampilan.
+- Rentang terbalik (`awal > akhir`) tidak menjadi galat; hasilnya sama dengan rentang tanpa task.
