@@ -42,3 +42,9 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Hasilnya `selesai / total`, angka 0 sampai 1 (bukan persen). Bila `total` 0, nilainya `None`, bukan 0, supaya "tidak ada task" tidak terbaca "0% selesai".
 - Semua area dikembalikan, termasuk yang tanpa task di rentang (`rate = None`). Menyaringnya adalah urusan tampilan.
 - Rentang terbalik (`awal > akhir`) tidak menjadi galat; hasilnya sama dengan rentang tanpa task.
+
+## Analitik: on-time rate (#62)
+
+- Pembilang: task `done` dengan `completed_at <= deadline` (selesai tepat pada deadline dihitung tepat waktu). Penyebut: task `done` yang punya deadline. Task tanpa deadline dan task `todo` tidak dihitung di keduanya.
+- Rentang disaring menurut tanggal `completed_at` (inklusif), karena hanya task `done` yang dihitung dan kolom itu yang menunjukkan kapan task selesai.
+- Satu angka gabungan semua area, 0 sampai 1. Bila penyebut 0, nilainya `None`, bukan 0, supaya "tidak ada data" tidak terbaca "semua terlambat".
