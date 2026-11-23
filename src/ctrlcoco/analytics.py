@@ -110,3 +110,29 @@ def longest_streak(conn: sqlite3.Connection, awal: date, akhir: date) -> int:
         terpanjang = max(terpanjang, berjalan)
         kemarin = hari
     return terpanjang
+
+
+# Rentang tetap jendela Ringkasan (#64): 12 minggu terakhir, berakhir hari ini.
+RENTANG_MINGGU = 12
+
+
+def rentang_ringkasan(today: date) -> tuple[date, date]:
+    """Rentang jendela Ringkasan: `RENTANG_MINGGU` minggu (84 hari) berakhir di `today`.
+
+    Awal dan akhir sama-sama dihitung (inklusif), seperti parameter fungsi analitik lain.
+    `today` dikirim dari luar, tidak diambil di sini, supaya bisa dites dengan tanggal tetap.
+    """
+    return today - timedelta(days=RENTANG_MINGGU * 7 - 1), today
+
+
+_SQL_ADA_DATA = "SELECT EXISTS (SELECT 1 FROM task) OR EXISTS (SELECT 1 FROM daily_log)"
+
+
+def ada_data(conn: sqlite3.Connection) -> bool:
+    """Apakah database punya data untuk diringkas: minimal satu task atau satu log.
+
+    Seluruh database, bukan hanya rentang Ringkasan. Area tanpa task belum dihitung data.
+    Log apa pun dihitung, termasuk yang bukan hari valid. Kolom tanggal tidak diperiksa,
+    jadi task tanpa deadline atau tanpa `completed_at` tetap terhitung.
+    """
+    return bool(conn.execute(_SQL_ADA_DATA).fetchone()[0])

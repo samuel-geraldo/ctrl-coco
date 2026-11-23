@@ -289,3 +289,49 @@ def test_streak_terpanjang_memakai_definisi_hari_valid_streak_py(conn):
     assert "KONDISI_HARI_VALID" in sumber_analytics
     assert "claude_code" not in sumber_analytics
     assert "KONDISI_HARI_VALID" in Path(streak.__file__).read_text(encoding="utf-8")
+
+
+# --- jendela Ringkasan (#64): rentang tetap dan pemeriksaan ada data ---
+
+
+def test_rentang_ringkasan_12_minggu_berakhir_hari_ini():
+    awal, akhir = analytics.rentang_ringkasan(date(2026, 3, 10))
+    assert analytics.RENTANG_MINGGU == 12
+    assert akhir == date(2026, 3, 10)
+    assert awal == date(2025, 12, 17)
+    assert (akhir - awal).days + 1 == 84  # awal dan akhir sama-sama dihitung
+
+
+def test_rentang_ringkasan_melewati_pergantian_tahun():
+    awal, akhir = analytics.rentang_ringkasan(date(2026, 1, 5))
+    assert (awal, akhir) == (date(2025, 10, 14), date(2026, 1, 5))
+
+
+def test_ada_data_database_kosong_false(conn):
+    assert analytics.ada_data(conn) is False
+
+
+def test_ada_data_area_saja_belum_dihitung(conn):
+    data.add_area(conn, "Kuliah")
+    assert analytics.ada_data(conn) is False
+
+
+def test_ada_data_satu_task_true_walau_kolom_tanggal_kosong(conn):
+    # Task todo tanpa deadline: deadline dan completed_at sama-sama NULL.
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan")
+    assert analytics.ada_data(conn) is True
+
+
+def test_ada_data_satu_log_true_walau_catatan_kosong(conn):
+    data.set_daily_log(conn, "2026-03-10", False, False)  # note NULL, bukan hari valid
+    assert analytics.ada_data(conn) is True
+
+
+def test_ada_data_seluruh_database_bukan_hanya_rentang(conn):
+    # Task jauh sebelum rentang 12 minggu tetap membuat database tidak kosong.
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Lama", now=datetime(2020, 1, 1, 8, 0))
+    awal, akhir = analytics.rentang_ringkasan(date(2026, 3, 10))
+    assert analytics.completion_rate_per_area(conn, awal, akhir)[0].total == 0
+    assert analytics.ada_data(conn) is True
