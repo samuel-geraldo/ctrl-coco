@@ -54,3 +54,10 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - `longest_streak(conn, awal, akhir)` mengembalikan deretan hari valid berturut-turut terpanjang di dalam rentang (inklusif); 0 bila tidak ada hari valid. Beda dari `get_streak`, yang hanya menghitung streak yang sedang berjalan.
 - Definisi hari valid satu sumber: konstanta `KONDISI_HARI_VALID` di `streak.py`, dipakai oleh `get_streak` dan `longest_streak`. `mood.py` dan `widget.py` tidak diubah; keduanya membaca satu baris log, bukan menyaring lewat SQL.
 - Deretan yang melewati batas rentang hanya dihitung bagian di dalamnya.
+
+## Jendela Ringkasan: rentang, data kosong, dan satu jendela (#64)
+
+- **Rentang tetap** 12 minggu: 84 hari berakhir hari ini (inklusif). `rentang_ringkasan(today)` di `analytics.py` yang menghitungnya; jendela hanya menampilkannya sebagai label. Penyelarasan ke hari Senin untuk heatmap diputuskan di #65.
+- **Ada data** berarti minimal satu baris di `task` atau `daily_log`, di seluruh database (bukan hanya di rentang). Area tanpa task belum dihitung. Log apa pun dihitung, termasuk yang bukan hari valid, dan kolom tanggal tidak diperiksa, jadi task tanpa deadline atau `completed_at` tetap terhitung. Bila tidak ada data, jendela menampilkan pesan "Belum ada data", bukan grafik kosong.
+- **Satu jendela, tidak modal.** Coco tetap bisa diklik saat Ringkasan terbuka. Jika Ringkasan sudah terbuka dan dipilih lagi dari menu, jendela lama dibawa ke depan, tidak dibuat ganda. Jendela dihapus dari memori setelah ditutup, seperti form lain.
+- Modul tampilan (`ringkasan.py`) tidak berisi SQL maupun hitungan metrik; semuanya lewat `analytics.py`.

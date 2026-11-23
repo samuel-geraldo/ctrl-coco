@@ -68,7 +68,7 @@ $env:PYTHONPATH = "src"
 python -m ctrlcoco
 ```
 
-Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -138,6 +138,7 @@ src/ctrlcoco/
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
   form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
+  ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
