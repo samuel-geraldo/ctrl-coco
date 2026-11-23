@@ -20,6 +20,7 @@ from ctrlcoco.pesan import (
     pesan_perayaan_task,
     pesan_reaksi,
 )
+from ctrlcoco.ringkasan import JendelaRingkasan
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.streak import get_streak
 from ctrlcoco.widget import (
@@ -505,8 +506,50 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
     w = CocoWidget(conn)
     aksi = buka_menu(w, monkeypatch)
     assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
-        "Log hari ini…", "Tambah task…", "Selesaikan task…", "---", "Keluar",
+        "Log hari ini…", "Tambah task…", "Selesaikan task…", "Ringkasan…", "---", "Keluar",
     ]
+
+
+def jendela_ringkasan_terbuka(w):
+    return [j for j in w.findChildren(JendelaRingkasan) if j.isVisible()]
+
+
+def test_ringkasan_membuka_jendela_dan_menutupnya_tidak_menutup_widget(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Ringkasan…")
+    terbuka = jendela_ringkasan_terbuka(w)
+    assert len(terbuka) == 1
+    assert terbuka[0].parent() is w          # muncul di atas Coco
+    assert not terbuka[0].isModal()          # Coco tetap bisa diklik
+
+    terbuka[0].close()
+    assert form_sudah_dihapus(w, JendelaRingkasan)
+    assert w.isVisible()
+    w.close()
+
+
+def test_ringkasan_dipilih_dua_kali_tidak_menggandakan_jendela(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Ringkasan…")
+    pertama = jendela_ringkasan_terbuka(w)[0]
+    picu_aksi(w, monkeypatch, "Ringkasan…")
+    assert jendela_ringkasan_terbuka(w) == [pertama]
+    pertama.close()
+    w.close()
+
+
+def test_buka_tutup_ringkasan_berkali_kali_tidak_meninggalkan_jendela_lama(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    for _ in range(5):
+        picu_aksi(w, monkeypatch, "Ringkasan…")
+        terbuka = jendela_ringkasan_terbuka(w)
+        assert len(terbuka) == 1
+        terbuka[0].close()
+        assert form_sudah_dihapus(w, JendelaRingkasan)
+    w.close()
 
 
 def test_log_hari_ini_membuka_form_dan_coco_langsung_senang(app, conn, monkeypatch):
