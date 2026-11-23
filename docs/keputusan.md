@@ -61,3 +61,11 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Ada data** berarti minimal satu baris di `task` atau `daily_log`, di seluruh database (bukan hanya di rentang). Area tanpa task belum dihitung. Log apa pun dihitung, termasuk yang bukan hari valid, dan kolom tanggal tidak diperiksa, jadi task tanpa deadline atau `completed_at` tetap terhitung. Bila tidak ada data, jendela menampilkan pesan "Belum ada data", bukan grafik kosong.
 - **Satu jendela, tidak modal.** Coco tetap bisa diklik saat Ringkasan terbuka. Jika Ringkasan sudah terbuka dan dipilih lagi dari menu, jendela lama dibawa ke depan, tidak dibuat ganda. Jendela dihapus dari memori setelah ditutup, seperti form lain.
 - Modul tampilan (`ringkasan.py`) tidak berisi SQL maupun hitungan metrik; semuanya lewat `analytics.py`.
+
+## Heatmap kalender hari valid (#65)
+
+- `hari_valid(conn, awal, akhir)` di `analytics.py` mengembalikan hari valid dalam rentang (inklusif), urut naik. Kuerinya memakai konstanta SQL yang sama dengan `longest_streak`, jadi aturan hari valid (`KONDISI_HARI_VALID`) tetap satu sumber.
+- **Rentang tetap 84 hari** (keputusan #64 tidak diubah). Grid 7 baris (Senin sampai Minggu) kali 13 kolom; sel sebelum awal rentang dan sesudah hari ini dikosongkan, bukan digambar. Menjaga rentang tetap 84 hari lebih sederhana daripada memajukan awal ke hari Senin, yang membuat panjang rentang berubah antara 78 dan 84 hari.
+- Heatmap dibuat dari `QLabel` kecil di `QGridLayout` (tanpa pustaka grafik, jadi ukuran .exe tidak bertambah). Tiap sel membawa properti `valid`, sehingga tes membaca sel yang ditandai tanpa membandingkan piksel.
+- Warna: hari valid hijau `#3fa34d` (sama dengan warna lompat Coco), hari dalam rentang tanpa log valid abu terang. Belum ada label hari atau bulan di tepi grid.
+- Bila database kosong, heatmap dan angka streak disembunyikan; yang tampil hanya pesan "Belum ada data". Bila database hanya punya task, heatmap tampil tanpa sel ditandai dan streak terpanjang 0.

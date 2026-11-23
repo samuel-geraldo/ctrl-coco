@@ -335,3 +335,65 @@ def test_ada_data_seluruh_database_bukan_hanya_rentang(conn):
     awal, akhir = analytics.rentang_ringkasan(date(2026, 3, 10))
     assert analytics.completion_rate_per_area(conn, awal, akhir)[0].total == 0
     assert analytics.ada_data(conn) is True
+
+
+# --- heatmap kalender (#65): daftar hari valid dalam rentang ---
+
+
+def _log(conn, hari, claude_code, github, note=None):
+    data.set_daily_log(conn, hari.isoformat(), claude_code, github, note)
+
+
+def test_hari_valid_tanpa_data(conn):
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == []
+
+
+def test_hari_valid_sesuai_data_contoh_dan_urut_naik(conn):
+    _log(conn, date(2026, 3, 20), True, True)
+    _log(conn, date(2026, 3, 5), True, True, note="rapat")
+    _log(conn, date(2026, 3, 6), True, True)
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == [
+        date(2026, 3, 5),
+        date(2026, 3, 6),
+        date(2026, 3, 20),
+    ]
+
+
+def test_hari_valid_hari_di_luar_rentang_tidak_ikut(conn):
+    _log(conn, date(2026, 2, 28), True, True)
+    _log(conn, date(2026, 3, 15), True, True)
+    _log(conn, date(2026, 4, 1), True, True)
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == [date(2026, 3, 15)]
+
+
+def test_hari_valid_batas_rentang_inklusif(conn):
+    _log(conn, AWAL, True, True)
+    _log(conn, AKHIR, True, True)
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == [AWAL, AKHIR]
+
+
+def test_hari_valid_hari_tidak_valid_tidak_ikut(conn):
+    _log(conn, date(2026, 3, 1), True, False)   # hanya Claude Code
+    _log(conn, date(2026, 3, 2), False, True)   # hanya GitHub
+    _log(conn, date(2026, 3, 3), False, False)  # keduanya kosong
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == []
+
+
+def test_hari_valid_rentang_terbalik_kosong(conn):
+    _log(conn, date(2026, 3, 10), True, True)
+    assert analytics.hari_valid(conn, AKHIR, AWAL) == []
+
+
+def test_hari_valid_task_tanpa_tanggal_tidak_memengaruhi(conn):
+    # Task todo tanpa deadline dan tanpa completed_at tidak membuat hari menjadi valid.
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan")
+    _log(conn, date(2026, 3, 10), True, True)
+    assert analytics.hari_valid(conn, AWAL, AKHIR) == [date(2026, 3, 10)]
+
+
+def test_hari_valid_konsisten_dengan_streak_terpanjang(conn):
+    _hari_valid(conn, date(2026, 3, 10), 4)
+    hari = analytics.hari_valid(conn, AWAL, AKHIR)
+    assert len(hari) == 4
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 4
