@@ -6,7 +6,9 @@ Semua fungsi menerima rentang tanggal `awal` dan `akhir` (keduanya inklusif, ber
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+
+from ctrlcoco.streak import KONDISI_HARI_VALID
 
 
 @dataclass(frozen=True)
@@ -81,3 +83,30 @@ def on_time_rate(conn: sqlite3.Connection, awal: date, akhir: date) -> float | N
     """
     baris = conn.execute(_SQL_ON_TIME, (awal.isoformat(), akhir.isoformat())).fetchone()
     return baris["tepat_waktu"] / baris["total"] if baris["total"] else None
+
+
+# Hanya konstanta modul yang digabung ke teks SQL; nilai masukan lewat parameter "?".
+_SQL_HARI_VALID = (
+    "SELECT log_date FROM daily_log WHERE "
+    + KONDISI_HARI_VALID
+    + " AND log_date BETWEEN ? AND ? ORDER BY log_date"
+)
+
+
+def longest_streak(conn: sqlite3.Connection, awal: date, akhir: date) -> int:
+    """Deretan hari valid berturut-turut terpanjang di dalam rentang (inklusif).
+
+    Beda dari `get_streak`, yang hanya menghitung streak yang sedang berjalan. Definisi
+    hari valid sama persis (`KONDISI_HARI_VALID` di streak.py). Hari tak tercatat atau
+    tidak valid memutus deretan; deretan yang melewati batas rentang hanya dihitung bagian
+    di dalamnya. Hasil 0 bila tidak ada hari valid di rentang (termasuk rentang terbalik).
+    """
+    baris = conn.execute(_SQL_HARI_VALID, (awal.isoformat(), akhir.isoformat()))
+    terpanjang = berjalan = 0
+    kemarin = None
+    for b in baris:
+        hari = date.fromisoformat(b["log_date"])
+        berjalan = berjalan + 1 if kemarin is not None and hari - kemarin == timedelta(1) else 1
+        terpanjang = max(terpanjang, berjalan)
+        kemarin = hari
+    return terpanjang

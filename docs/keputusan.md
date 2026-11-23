@@ -48,3 +48,9 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Pembilang: task `done` dengan `completed_at <= deadline` (selesai tepat pada deadline dihitung tepat waktu). Penyebut: task `done` yang punya deadline. Task tanpa deadline dan task `todo` tidak dihitung di keduanya.
 - Rentang disaring menurut tanggal `completed_at` (inklusif), karena hanya task `done` yang dihitung dan kolom itu yang menunjukkan kapan task selesai.
 - Satu angka gabungan semua area, 0 sampai 1. Bila penyebut 0, nilainya `None`, bukan 0, supaya "tidak ada data" tidak terbaca "semua terlambat".
+
+## Analitik: streak terpanjang (#63)
+
+- `longest_streak(conn, awal, akhir)` mengembalikan deretan hari valid berturut-turut terpanjang di dalam rentang (inklusif); 0 bila tidak ada hari valid. Beda dari `get_streak`, yang hanya menghitung streak yang sedang berjalan.
+- Definisi hari valid satu sumber: konstanta `KONDISI_HARI_VALID` di `streak.py`, dipakai oleh `get_streak` dan `longest_streak`. `mood.py` dan `widget.py` tidak diubah; keduanya membaca satu baris log, bukan menyaring lewat SQL.
+- Deretan yang melewati batas rentang hanya dihitung bagian di dalamnya.

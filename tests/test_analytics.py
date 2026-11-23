@@ -1,8 +1,8 @@
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from ctrlcoco import analytics, data
+from ctrlcoco import analytics, data, streak
 
 AWAL = date(2026, 3, 1)
 AKHIR = date(2026, 3, 31)
@@ -201,3 +201,91 @@ def test_on_time_gabungan_semua_area(conn):
     _selesai(conn, kuliah, "2026-03-05 09:00", "2026-03-05 17:00")
     _selesai(conn, magang, "2026-03-06 18:00", "2026-03-06 17:00")
     assert analytics.on_time_rate(conn, AWAL, AKHIR) == 0.5
+
+
+# --- streak terpanjang (#63) ---
+
+
+
+def _hari_valid(conn, awal, jumlah):
+    """`jumlah` hari valid berturut-turut mulai dari `awal`."""
+    for i in range(jumlah):
+        data.set_daily_log(conn, (awal + timedelta(days=i)).isoformat(), True, True)
+
+
+def test_streak_terpanjang_tanpa_data(conn):
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 0
+
+
+def test_streak_terpanjang_satu_hari(conn):
+    data.set_daily_log(conn, "2026-03-10", True, True)
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 1
+
+
+def test_streak_terpanjang_pilih_deretan_terpanjang(conn):
+    _hari_valid(conn, date(2026, 3, 2), 2)
+    _hari_valid(conn, date(2026, 3, 10), 5)
+    _hari_valid(conn, date(2026, 3, 20), 3)
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 5
+
+
+def test_streak_terpanjang_hari_tidak_lengkap_memutus(conn):
+    _hari_valid(conn, date(2026, 3, 1), 3)
+    data.set_daily_log(conn, "2026-03-04", True, False)  # hanya Claude Code
+    data.set_daily_log(conn, "2026-03-05", False, True)  # hanya GitHub
+    _hari_valid(conn, date(2026, 3, 6), 2)
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 3
+
+
+def test_streak_terpanjang_hari_tidak_tercatat_memutus(conn):
+    _hari_valid(conn, date(2026, 3, 1), 2)
+    _hari_valid(conn, date(2026, 3, 4), 2)  # 3 Maret tidak tercatat
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 2
+
+
+def test_streak_terpanjang_di_luar_rentang_diabaikan(conn):
+    _hari_valid(conn, date(2026, 2, 1), 10)  # sebelum rentang
+    _hari_valid(conn, date(2026, 4, 1), 10)  # setelah rentang
+    _hari_valid(conn, date(2026, 3, 10), 2)
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 2
+
+
+def test_streak_terpanjang_deretan_terpotong_batas_rentang(conn):
+    # Deretan 27 Feb sampai 3 Mar: hanya bagian di dalam rentang (1 sampai 3 Maret) dihitung.
+    _hari_valid(conn, date(2026, 2, 27), 5)
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 3
+
+
+def test_streak_terpanjang_batas_rentang_inklusif(conn):
+    _hari_valid(conn, date(2026, 3, 30), 2)  # 30 dan 31 Maret
+    assert analytics.longest_streak(conn, AWAL, AKHIR) == 2
+    assert analytics.longest_streak(conn, date(2026, 3, 31), date(2026, 3, 31)) == 1
+
+
+def test_streak_terpanjang_rentang_terbalik_nol(conn):
+    _hari_valid(conn, date(2026, 3, 10), 3)
+    assert analytics.longest_streak(conn, AKHIR, AWAL) == 0
+
+
+def test_streak_terpanjang_sama_dengan_get_streak_bila_sedang_berjalan(conn):
+    hari_ini = date(2026, 3, 10)
+    _hari_valid(conn, date(2026, 3, 6), 5)  # 6 sampai 10 Maret, berakhir hari ini
+    assert streak.get_streak(conn, today=hari_ini) == 5
+    assert analytics.longest_streak(conn, AWAL, hari_ini) == 5
+
+
+def test_streak_lama_lebih_panjang_dari_streak_berjalan(conn):
+    hari_ini = date(2026, 3, 20)
+    _hari_valid(conn, date(2026, 3, 1), 10)  # 1 sampai 10 Maret
+    # 11 sampai 17 Maret putus
+    _hari_valid(conn, date(2026, 3, 18), 3)  # 18 sampai 20 Maret, sampai hari ini
+    assert streak.get_streak(conn, today=hari_ini) == 3
+    assert analytics.longest_streak(conn, AWAL, hari_ini) == 10
+
+
+def test_streak_terpanjang_memakai_definisi_hari_valid_streak_py(conn):
+    # Aturan hari valid satu sumber: konstanta di streak.py, dipakai kedua modul.
+    sumber_analytics = _sumber()
+    assert "KONDISI_HARI_VALID" in sumber_analytics
+    assert "claude_code" not in sumber_analytics
+    assert "KONDISI_HARI_VALID" in Path(streak.__file__).read_text(encoding="utf-8")
