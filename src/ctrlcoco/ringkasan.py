@@ -7,10 +7,13 @@ from PySide6.QtWidgets import QDialog, QLabel, QVBoxLayout, QWidget
 from ctrlcoco.analytics import (
     RENTANG_MINGGU,
     ada_data,
+    completion_rate_per_area,
     hari_valid,
     longest_streak,
+    on_time_rate,
     rentang_ringkasan,
 )
+from ctrlcoco.grafik_area import GrafikCompletionRate, teks_on_time
 from ctrlcoco.heatmap import HeatmapKalender
 
 FORMAT_TANGGAL = "%d/%m/%Y"
@@ -51,8 +54,17 @@ class JendelaRingkasan(QDialog):
         self.streak_label = QLabel(f"Streak terpanjang: {longest_streak(conn, awal, akhir)} hari")
         self.streak_label.setVisible(ada)
 
+        # Grafik completion rate per area (#61) dan on-time rate (#62), juga disembunyikan
+        # bila database kosong.
+        self.grafik = GrafikCompletionRate(completion_rate_per_area(conn, awal, akhir))
+        self.grafik.setVisible(ada)
+        self.on_time_label = QLabel(teks_on_time(on_time_rate(conn, awal, akhir)))
+        self.on_time_label.setVisible(ada)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.rentang_label)
         layout.addWidget(self.kosong_label)
         layout.addWidget(self.heatmap)
         layout.addWidget(self.streak_label)
+        layout.addWidget(self.grafik)
+        layout.addWidget(self.on_time_label)
