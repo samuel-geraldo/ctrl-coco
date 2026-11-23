@@ -136,3 +136,14 @@ def ada_data(conn: sqlite3.Connection) -> bool:
     jadi task tanpa deadline atau tanpa `completed_at` tetap terhitung.
     """
     return bool(conn.execute(_SQL_ADA_DATA).fetchone()[0])
+
+
+def hari_valid(conn: sqlite3.Connection, awal: date, akhir: date) -> list[date]:
+    """Hari valid di dalam rentang (inklusif), urut dari yang paling awal.
+
+    Dasar heatmap kalender (#65). Definisi hari valid sama persis dengan `longest_streak`
+    (`KONDISI_HARI_VALID` di streak.py, lewat kueri yang sama). Rentang terbalik atau
+    tanpa hari valid menghasilkan daftar kosong.
+    """
+    baris = conn.execute(_SQL_HARI_VALID, (awal.isoformat(), akhir.isoformat()))
+    return [date.fromisoformat(b["log_date"]) for b in baris]
