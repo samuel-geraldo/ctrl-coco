@@ -139,6 +139,7 @@ src/ctrlcoco/
   form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
+  heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
