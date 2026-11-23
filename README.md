@@ -140,6 +140,7 @@ src/ctrlcoco/
   form_selesai.py form untuk menandai task selesai
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
+  grafik_area.py grafik batang completion rate per area dan teks on-time rate
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar

@@ -69,3 +69,12 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Heatmap dibuat dari `QLabel` kecil di `QGridLayout` (tanpa pustaka grafik, jadi ukuran .exe tidak bertambah). Tiap sel membawa properti `valid`, sehingga tes membaca sel yang ditandai tanpa membandingkan piksel.
 - Warna: hari valid hijau `#3fa34d` (sama dengan warna lompat Coco), hari dalam rentang tanpa log valid abu terang. Belum ada label hari atau bulan di tepi grid.
 - Bila database kosong, heatmap dan angka streak disembunyikan; yang tampil hanya pesan "Belum ada data". Bila database hanya punya task, heatmap tampil tanpa sel ditandai dan streak terpanjang 0.
+
+## Grafik completion rate per area dan on-time rate (#66)
+
+- Tidak ada fungsi analitik baru: grafik memakai `completion_rate_per_area` (#61) dan teks on-time memakai `on_time_rate` (#62), keduanya dengan rentang 84 hari yang sama dengan heatmap.
+- Satu baris per area, urutan sama dengan hasil fungsi analitik: nama, batang, dan teks "67% (2/3)". Batang adalah `QLabel` dengan lebar sebanding `rate` (tanpa pustaka grafik, jadi ukuran .exe tidak bertambah). Tiap batang membawa properti `rate` dan `kosong`, supaya tes membaca nilainya tanpa membandingkan piksel.
+- **Penyebut nol dibedakan dari 0%.** Area tanpa task di rentang (`rate = None`) tidak punya batang dan teksnya abu "belum ada task". Area yang punya task tapi belum ada yang selesai tampil "0% (0/N)" dengan batang kosong. Hal yang sama untuk on-time rate: tanpa task selesai berdeadline, teksnya "belum ada task selesai dengan deadline", bukan 0%.
+- Persen ditampilkan bulat, setengah dibulatkan ke atas (12,5 menjadi 13), dan selalu ditemani "(selesai/total)" supaya angka aslinya terlihat.
+- Belum ada scroll: jendela memanjang mengikuti jumlah area. Cukup untuk v0.1.0; ditinjau lagi bila area banyak.
+- Bila database kosong, grafik dan on-time disembunyikan; yang tampil hanya "Belum ada data".
