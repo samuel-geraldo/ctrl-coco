@@ -20,6 +20,7 @@ from ctrlcoco.pesan import (
     pesan_reaksi,
 )
 from ctrlcoco.posisi import posisi_form
+from ctrlcoco.ringkasan import JendelaRingkasan
 from ctrlcoco.sprites import SPRITE_DIR, load_frames
 from ctrlcoco.streak import get_streak
 
@@ -249,13 +250,14 @@ class CocoWidget(QWidget):
             self._posisi_tekan = None
             self.buka_form_log()
 
-    # --- klik kanan: log hari ini, tambah task, selesaikan task, keluar ---
+    # --- klik kanan: log hari ini, tambah task, selesaikan task, ringkasan, keluar ---
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         menu.addAction("Log hari ini…", self.buka_form_log)
         menu.addAction("Tambah task…", self.buka_form_tambah_task)
         menu.addAction("Selesaikan task…", self.buka_form_selesai)
+        menu.addAction("Ringkasan…", self.buka_ringkasan)
         menu.addSeparator()
         menu.addAction("Keluar", QApplication.quit)
         menu.exec(event.globalPos())
@@ -280,6 +282,20 @@ class CocoWidget(QWidget):
         form = self._buka_form(FormSelesaikanTask(self.conn, self))
         form.accepted.connect(self._rayakan_task)  # method terikat, lihat buka_form_log
         return form
+
+    def buka_ringkasan(self) -> JendelaRingkasan:
+        # Satu jendela saja: bila sudah terbuka, dibawa ke depan, tidak dibuat ganda.
+        # Yang sudah ditutup tapi belum dihapus Qt (hapus tertunda) tidak dihitung.
+        for jendela in self.findChildren(JendelaRingkasan):
+            if jendela.isVisible():
+                jendela.raise_()
+                jendela.activateWindow()
+                return jendela
+        # Parent widget, supaya jendela tampil di depan Coco yang always on top. Tidak
+        # modal: Coco tetap bisa diklik. show(), bukan open().
+        jendela = JendelaRingkasan(self.conn, parent=self)
+        jendela.show()
+        return jendela
 
     def _buka_form(self, form):
         # Widget menjadi parent form, supaya form tampil di depan Coco yang always on top.
