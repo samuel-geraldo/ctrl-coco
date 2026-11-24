@@ -5,7 +5,7 @@ import pytest
 from PySide6.QtCore import QDateTime, QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QContextMenuEvent, QMouseEvent, QPixmap
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMenu
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
 
 from ctrlcoco import data, db
 from ctrlcoco import widget as widget_module
@@ -506,7 +506,8 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
     w = CocoWidget(conn)
     aksi = buka_menu(w, monkeypatch)
     assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
-        "Log hari ini…", "Tambah task…", "Selesaikan task…", "Ringkasan…", "---", "Keluar",
+        "Log hari ini…", "Tambah task…", "Selesaikan task…", "Ringkasan…", "Ekspor CSV…",
+        "---", "Keluar",
     ]
 
 
@@ -881,3 +882,107 @@ def test_perayaan_tidak_mengubah_database(app, conn, sprite_dir):
     w.next_frame()
     w.perayaan_timer.timeout.emit()
     assert conn.total_changes == sebelum
+
+
+# --- Ekspor CSV (#43): pilih folder, tanya dulu bila file ada, lapor hasil atau error ---
+
+
+@pytest.fixture
+def dialog(monkeypatch):
+    """Ganti dialog Qt: tidak menunggu klik, hanya mencatat panggilan dan memberi jawaban."""
+
+    class Dialog:
+        folder = ""  # jawaban dialog pilih folder; "" berarti dibatalkan
+        timpa = QMessageBox.Yes  # jawaban pertanyaan "timpa file lama?"
+
+        def __init__(self):
+            self.folder_diminta = []
+            self.pertanyaan = []
+            self.info = []
+            self.error = []
+
+    d = Dialog()
+
+    def pilih_folder(*args, **kwargs):
+        d.folder_diminta.append(args)
+        return d.folder
+
+    def tanya(*args, **kwargs):
+        d.pertanyaan.append(args)
+        return d.timpa
+
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", staticmethod(pilih_folder))
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(tanya))
+    monkeypatch.setattr(QMessageBox, "information", staticmethod(lambda *a: d.info.append(a)))
+    monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a: d.error.append(a)))
+    return d
+
+
+def test_menu_ekspor_csv_membuka_dialog_pilih_folder_di_atas_coco(app, conn, monkeypatch, dialog):
+    w = CocoWidget(conn)
+    picu_aksi(w, monkeypatch, "Ekspor CSV…")
+    assert len(dialog.folder_diminta) == 1
+    assert dialog.folder_diminta[0][0] is w  # parent Coco: dialog tampil di depan
+
+
+def test_ekspor_csv_menulis_dua_file_dan_melaporkan_folder(app, conn, tmp_path, dialog):
+    area_id = data.add_area(conn, "Kuliah")
+    data.add_task(conn, area_id, "Laporan")
+    dialog.folder = str(tmp_path)
+    w = CocoWidget(conn)
+    w.buka_ekspor()
+    assert (tmp_path / "task.csv").is_file()
+    assert (tmp_path / "daily_log.csv").is_file()
+    assert len(dialog.info) == 1
+    teks = dialog.info[0][2]  # QMessageBox.information(parent, judul, teks)
+    assert str(tmp_path) in teks
+    assert dialog.pertanyaan == [] and dialog.error == []
+
+
+def test_ekspor_csv_dibatalkan_tidak_menulis_apa_pun(app, conn, tmp_path, dialog):
+    dialog.folder = ""  # pengguna menutup dialog pilih folder
+    w = CocoWidget(conn)
+    w.buka_ekspor()
+    assert list(tmp_path.iterdir()) == []
+    assert dialog.pertanyaan == [] and dialog.info == [] and dialog.error == []
+
+
+def test_ekspor_csv_file_ada_ditanya_dulu_dan_ditimpa_bila_ya(app, conn, tmp_path, dialog):
+    (tmp_path / "task.csv").write_text("isi lama", encoding="utf-8")
+    dialog.folder = str(tmp_path)
+    dialog.timpa = QMessageBox.Yes
+    w = CocoWidget(conn)
+    w.buka_ekspor()
+    assert len(dialog.pertanyaan) == 1
+    assert "task.csv" in dialog.pertanyaan[0][2]  # pertanyaan menyebut file yang tertimpa
+    assert (tmp_path / "task.csv").read_text(encoding="utf-8-sig").startswith("area,")
+    assert len(dialog.info) == 1
+
+
+def test_ekspor_csv_file_ada_dan_jawaban_tidak_membiarkan_file_lama(app, conn, tmp_path, dialog):
+    (tmp_path / "task.csv").write_text("isi lama", encoding="utf-8")
+    dialog.folder = str(tmp_path)
+    dialog.timpa = QMessageBox.No
+    w = CocoWidget(conn)
+    w.buka_ekspor()
+    assert (tmp_path / "task.csv").read_text(encoding="utf-8") == "isi lama"
+    assert not (tmp_path / "daily_log.csv").exists()
+    assert dialog.info == [] and dialog.error == []
+
+
+def test_ekspor_csv_folder_baru_tidak_bertanya(app, conn, tmp_path, dialog):
+    dialog.folder = str(tmp_path)
+    w = CocoWidget(conn)
+    w.buka_ekspor()
+    assert dialog.pertanyaan == []
+
+
+def test_ekspor_csv_gagal_menulis_menampilkan_pesan_error_tanpa_crash(app, conn, tmp_path, dialog):
+    dialog.folder = str(tmp_path / "tidak_ada")  # OSError saat membuka file
+    w = CocoWidget(conn)
+    w.buka_ekspor()  # tidak boleh melempar
+    assert dialog.info == []
+    assert len(dialog.error) == 1
+    teks = dialog.error[0][2]  # QMessageBox.critical(parent, judul, teks)
+    assert "tidak_ada" in teks  # lokasi
+    assert "Penyebab" in teks
