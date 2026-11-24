@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml"><img src="https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests"></a>
+  <a href="https://github.com/samuel-geraldo/ctrl-coco/blob/main/LICENSE"><img src="https://img.shields.io/github/license/samuel-geraldo/ctrl-coco" alt="Lisensi MIT"></a>
   <img src="https://img.shields.io/badge/python-3.14-blue" alt="Python 3.14">
   <img src="https://img.shields.io/badge/GUI-PySide6-41cd52" alt="PySide6">
   <img src="https://img.shields.io/badge/status-work%20in%20progress-orange" alt="status">
@@ -19,7 +20,19 @@ CtrlCoco adalah widget desktop pribadi untuk memantau task, deadline, dan streak
 
 Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desain data, logika yang terpisah dari tampilan, tes otomatis, CI, dan alur kerja issue → branch → pull request.
 
-## Coco dan suasana hatinya
+## Fitur
+
+- Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
+- Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
+- Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
+- Menu klik kanan: catat log hari ini, tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task, buka Ringkasan, dan ekspor data ke CSV
+- Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, dan on-time rate
+- Form muncul di samping Coco, jadi Coco tetap terlihat
+- Data dibaca ulang otomatis setiap 60 detik dan tersimpan lokal di SQLite
+
+Gambar Coco saat ini masih **sementara** (lingkaran berwarna per kondisi). Pixel art asli menyusul, begitu pula tangkapan layar; cara mengganti gambarnya ada di bagian [Sprite](#sprite).
+
+### Coco dan suasana hatinya
 
 Coco hanya punya satu kondisi pada satu waktu. Aturan diperiksa berurutan, yang pertama cocok menang:
 
@@ -33,42 +46,9 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 **Streak** dihitung mundur dari hari ini (atau dari kemarin kalau hari ini belum valid), dan tidak disimpan di database: selalu dihitung ulang dari `daily_log`, jadi tidak bisa tidak sinkron.
 
-## Fitur saat ini
+### Menu klik kanan
 
-- Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
-- Menampilkan streak dan task terdekat berdeadline
-- Dari menu klik kanan: catat log hari ini, tambah task (dan area baru), tandai task selesai, dan ekspor data ke CSV
-- Ekspresi Coco mengikuti kondisi, dengan animasi frame bergantian
-- Data dibaca ulang otomatis setiap 60 detik
-- Data tersimpan lokal di SQLite; tidak ada akun, tidak ada jaringan
-
-Gambar Coco saat ini masih **sementara** (lingkaran berwarna per kondisi). Pixel art asli menyusul; cara mengganti gambarnya ada di bagian [Sprite](#sprite).
-
-## Cara menjalankan
-
-Butuh Python 3.11 atau lebih baru (dikembangkan dan diuji di 3.14) dan Windows.
-
-CMD:
-
-```bat
-py -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-set PYTHONPATH=src
-python -m ctrlcoco
-```
-
-PowerShell:
-
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-$env:PYTHONPATH = "src"
-python -m ctrlcoco
-```
-
-Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -103,24 +83,43 @@ Klik kanan widget lalu pilih **Ekspor CSV…** dan pilih folder tujuan. Dua file
 
 `area` berisi nama area. `status` bernilai `belum` atau `selesai`, centang log bernilai `ya` atau `tidak`, dan nilai yang kosong ditulis sebagai sel kosong. File memakai UTF-8 dengan BOM, jadi bisa langsung dibuka di Excel tanpa huruf yang rusak. Bila `task.csv` atau `daily_log.csv` sudah ada di folder itu, widget bertanya dulu sebelum menimpanya. Bila gagal menulis (misalnya folder tidak bisa ditulisi), pesan penyebabnya muncul dan widget tetap berjalan. Impor dari CSV belum ada.
 
-### Lokasi data
+## Privasi
 
-Database harian disimpan di `%APPDATA%\CtrlCoco\ctrlcoco.db` (folder dibuat otomatis), jadi tidak bergantung pada folder tempat widget dijalankan dan tidak ikut masuk repo.
+Singkatnya: semua data lokal, tanpa akun dan jaringan. Semua data tinggal di komputer sendiri. Repo ini publik, jadi database, `.venv`, dan data pribadi tidak pernah di-commit; data contoh di `scripts/seed_demo.py` sengaja generik (kuliah, portofolio).
 
-### Membangun CtrlCoco.exe
+## Cara instal
 
-Untuk mendapat satu berkas `.exe` yang jalan tanpa Python terpasang (Windows). Dari akar repo:
+### Dari .exe (tanpa Python)
+
+Unduh `CtrlCoco.exe` lalu jalankan; Python tidak perlu terpasang. GitHub Release v0.1.0 belum terbit. Sementara itu, `.exe` bisa diunduh sebagai artifact **CtrlCoco-exe** dari workflow **build-exe** di tab Actions (langkahnya ada di [Membangun CtrlCoco.exe](#membangun-ctrlcocoexe)).
+
+### Dari sumber (butuh Python)
+
+Butuh Python 3.11 atau lebih baru (dikembangkan dan diuji di 3.14) dan Windows.
+
+CMD:
 
 ```bat
 py -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements-build.txt
-python -m PyInstaller packaging/ctrlcoco.spec --noconfirm
+pip install -r requirements.txt
+set PYTHONPATH=src
+python -m ctrlcoco
 ```
 
-Hasilnya `dist\CtrlCoco.exe`. Database tetap di `%APPDATA%\CtrlCoco\ctrlcoco.db`, sama dengan versi sumber, bukan di folder `.exe`. Folder `assets` ikut tertanam di dalam `.exe`.
+PowerShell:
 
-Tanpa membangun sendiri: di GitHub, tab **Actions**, workflow **build-exe**, pilih **Run workflow**, lalu unduh artifact **CtrlCoco-exe** dari halaman hasilnya. Workflow yang sama berjalan pada pull request yang mengubah `src/`, `assets/`, atau `packaging/`.
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:PYTHONPATH = "src"
+python -m ctrlcoco
+```
+
+### Lokasi data
+
+Database harian disimpan di `%APPDATA%\CtrlCoco\ctrlcoco.db` (folder dibuat otomatis), jadi tidak bergantung pada folder tempat widget dijalankan dan tidak ikut masuk repo.
 
 ### Mencoba dengan data contoh
 
@@ -140,7 +139,57 @@ Isinya data fiktif untuk 60 hari terakhir, selalu sama untuk tanggal yang sama:
 
 Untuk mengisi ulang, hapus `demo.db` lalu jalankan skripnya lagi.
 
-## Sprite
+## FAQ
+
+**Butuh akun atau internet?** Tidak: semua data lokal, tanpa akun dan jaringan.
+
+**Di mana datanya disimpan?** Di `%APPDATA%\CtrlCoco\ctrlcoco.db`, lihat [Lokasi data](#lokasi-data).
+
+**Kenapa Coco masih berupa lingkaran berwarna?** Sprite pixel art aslinya belum selesai digambar. Widget memakai gambar sementara sampai filenya ada, lihat [Sprite](#sprite).
+
+**Bagaimana mencoba tanpa mengisi data sendiri?** Pakai data contoh, lihat [Mencoba dengan data contoh](#mencoba-dengan-data-contoh).
+
+**Bisa dipakai di macOS atau Linux?** Belum. CtrlCoco dikembangkan dan diuji di Windows, dan build `.exe` hanya untuk Windows.
+
+**Bisa membatalkan task yang sudah selesai, atau mengimpor dari CSV?** Belum. Pembatalan status selesai direncanakan untuk v0.2.0; impor CSV belum dijadwalkan.
+
+## Cara build dan tes
+
+### Tes
+
+```bat
+set PYTHONPATH=src
+python -m pytest
+```
+
+Tes widget berjalan tanpa layar (`QT_QPA_PLATFORM=offscreen`). GitHub Actions menjalankan seluruh tes di Windows dengan Python 3.14 pada setiap pull request dan setiap push ke `main`.
+
+### Cek kode (lint)
+
+```bat
+ruff check .
+```
+
+Aturan ruff ada di `pyproject.toml`. CI menjalankan perintah yang sama sebelum tes; ada temuan berarti CI gagal.
+
+### Membangun CtrlCoco.exe
+
+Untuk mendapat satu berkas `.exe` yang jalan tanpa Python terpasang (Windows). Dari akar repo:
+
+```bat
+py -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-build.txt
+python -m PyInstaller packaging/ctrlcoco.spec --noconfirm
+```
+
+Hasilnya `dist\CtrlCoco.exe`. Database tetap di `%APPDATA%\CtrlCoco\ctrlcoco.db`, sama dengan versi sumber, bukan di folder `.exe`. Folder `assets` ikut tertanam di dalam `.exe`.
+
+Tanpa membangun sendiri: di GitHub, tab **Actions**, workflow **build-exe**, pilih **Run workflow**, lalu unduh artifact **CtrlCoco-exe** dari halaman hasilnya. Workflow yang sama berjalan pada pull request yang mengubah `src/`, `assets/`, atau `packaging/`.
+
+## Untuk pengembang
+
+### Sprite
 
 Widget membaca frame animasi dari `assets/sprites/<kondisi>_<n>.png`, misalnya `senang_1.png` dan `senang_2.png`, diurutkan menurut nomornya. Ringkasnya:
 
@@ -151,7 +200,7 @@ Widget membaca frame animasi dari `assets/sprites/<kondisi>_<n>.png`, misalnya `
 
 Aturan lengkap, palet warna, langkah menggambar di Piskel, dan cara mencobanya ada di [`docs/sprite.md`](docs/sprite.md).
 
-## Struktur proyek
+### Struktur proyek
 
 ```text
 src/ctrlcoco/
@@ -182,7 +231,7 @@ docs/
   sprite.md          panduan menggambar sprite Coco
 ```
 
-### Pilihan desain yang sengaja
+#### Pilihan desain yang sengaja
 
 - **Logika dipisah dari tampilan.** `mood.py` dan `streak.py` adalah fungsi murni atas database, jadi bisa diuji tanpa membuka jendela.
 - **Waktu dikirim sebagai parameter.** `get_mood(conn, now)` tidak memanggil `datetime.now()` sendiri, sehingga kasus seperti "tepat 24 jam sebelum deadline" atau "lewat tengah malam" bisa dites tanpa menunggu jam sungguhan.
@@ -190,43 +239,38 @@ docs/
 - **SQL selalu berparameter** (`?`), dan `PRAGMA foreign_keys = ON` di setiap koneksi.
 - **Format tanggal ketat** (`YYYY-MM-DD` dan `YYYY-MM-DD HH:MM`): `2026-3-5` ditolak, supaya urutan teks sama dengan urutan waktu.
 
-## Tes
-
-```bat
-set PYTHONPATH=src
-python -m pytest
-```
-
-Tes widget berjalan tanpa layar (`QT_QPA_PLATFORM=offscreen`). GitHub Actions menjalankan seluruh tes di Windows dengan Python 3.14 pada setiap pull request dan setiap push ke `main`.
-
-## Cek kode (lint)
-
-```bat
-ruff check .
-```
-
-Aturan ruff ada di `pyproject.toml`. CI menjalankan perintah yang sama sebelum tes; ada temuan berarti CI gagal.
-
-## Alur kerja
+### Alur kerja
 
 Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review lewat tab *Files changed* sebelum di-merge, dan tiap tahap ditutup dengan recap pemahaman. Temuan audit kode dicatat sebagai issue, bukan diperbaiki diam-diam.
 
 ## Peta jalan
 
-- [x] Tahap 1: ERD dan user story
-- [x] Tahap 2: inti data (area, task, daily_log) dan streak
-- [x] Tahap 3: widget dasar, lokasi database tetap, data contoh, latar transparan
-- [x] Tahap 4a: logika kondisi Coco (`get_mood`)
-- [x] Tahap 4b: mesin animasi dengan sprite sementara
-- [ ] Sprite pixel art Coco yang asli
-- [x] Tahap 5a: form tambah task dari menu klik kanan
-- [x] Tahap 5b: centang log harian dan tombol selesai task
-- [ ] Tahap 6: tinjauan mingguan (opsional)
-- [ ] Pengemasan dan jalan otomatis saat Windows menyala (opsional)
+Mengikuti milestone di GitHub.
 
-## Privasi
+**v0.1.0** (tenggat 2 Desember 2026)
 
-Semua data tinggal di komputer sendiri. Repo ini publik, jadi database, `.venv`, dan data pribadi tidak pernah di-commit; data contoh di `scripts/seed_demo.py` sengaja generik (kuliah, portofolio).
+- [x] Tahap 1 sampai 4: ERD, inti data, streak, widget, kondisi Coco, dan animasi
+- [x] Tahap 5: form tambah task, log harian, dan selesaikan task
+- [x] Coco terasa hidup: gelembung bicara, klik, perayaan, form di samping Coco, deadline cepat
+- [x] Jendela Ringkasan: heatmap, streak terpanjang, completion rate, on-time rate
+- [x] Ekspor CSV
+- [x] Data contoh 60 hari, lint di CI, dependensi terkunci, dan LICENSE MIT
+- [x] Lokasi aset yang benar di `.exe` dan build `.exe` lewat GitHub Actions
+- [ ] Sprite pixel art Coco yang asli (senang, waspada, tidur)
+- [ ] Skrip tangkapan layar dan README bergambar
+- [ ] GitHub Release v0.1.0 dengan `.exe`
+
+**v0.2.0** (tenggat 19 Desember 2026)
+
+- [ ] Tahap 6: jendela Tinjauan mingguan
+- [ ] Analitik: waktu penyelesaian task per area dan produktivitas per hari dalam seminggu
+- [ ] SQL view untuk statistik task
+- [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
+- [ ] Kelas dasar form untuk tiga form
+- [ ] Laporan cakupan tes dan badge di README
+- [ ] Opsi jalan otomatis saat Windows menyala
+- [ ] CHANGELOG dan studi kasus
+- [ ] Rilis v0.2.0
 
 ## Lisensi
 
