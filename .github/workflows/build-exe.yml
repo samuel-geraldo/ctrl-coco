@@ -1,0 +1,50 @@
+name: build-exe
+
+# Membangun CtrlCoco.exe dan mengunggahnya sebagai artifact. Dijalankan manual (tab Actions,
+# "Run workflow") dan pada pull request yang menyentuh hal yang masuk ke .exe.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/**"
+      - "assets/**"
+      - "packaging/**"
+      - "requirements*.txt"
+      - ".github/workflows/build-exe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements-build.txt
+      - run: python -m PyInstaller packaging/ctrlcoco.spec --noconfirm
+      - name: Pastikan hasilnya satu .exe
+        shell: bash
+        run: |
+          ls -la dist
+          test -f dist/CtrlCoco.exe
+          test "$(ls dist | wc -l)" -eq 1
+      - name: Uji asap, .exe harus tetap berjalan
+        shell: pwsh
+        env:
+          # Server CI tidak punya layar; Qt menggambar jendela di memori saja.
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $db = Join-Path $env:RUNNER_TEMP "asap.db"
+          $p = Start-Process -FilePath "dist\CtrlCoco.exe" -ArgumentList "--db", $db -PassThru
+          Start-Sleep -Seconds 10
+          if ($p.HasExited) { throw "CtrlCoco.exe berhenti dengan kode $($p.ExitCode)" }
+          if (-not (Test-Path $db)) { throw "database tidak dibuat di $db" }
+          Stop-Process -Id $p.Id -Force
+      - uses: actions/upload-artifact@v7
+        with:
+          name: CtrlCoco-exe
+          path: dist/CtrlCoco.exe
+          if-no-files-found: error
