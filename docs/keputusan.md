@@ -108,3 +108,11 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Modul Qt yang tidak dipakai dikecualikan** (WebEngine, Pdf, Qml, Quick, 3D, Multimedia, Charts) agar ukuran tidak membengkak.
 - **Belum ada ikon `.exe`.** Logo 608x688 tidak persegi; ikon yang layak butuh berkas `.ico` yang digambar tersendiri. Ditunda, bukan bagian kriteria #75.
 - **Workflow `build-exe`** (runner Windows) membangun .exe, memastikan `dist/` hanya berisi `CtrlCoco.exe`, menjalankannya sepuluh detik dengan database sementara (harus tetap hidup dan membuat database), lalu mengunggahnya sebagai artifact. Dijalankan manual dan pada pull request yang menyentuh `src/`, `assets/`, atau `packaging/`. Pemeriksaan di Windows tanpa Python dan sprite yang dimuat dari paket tetap manual di laptop pribadi (kriteria #75); build ini belum membuktikannya.
+
+## Susunan README dan peta jalan (#77)
+
+- Urutan bagian mengikuti #77: ringkasan dan badge, Fitur, Privasi, Cara instal, FAQ, Cara build dan tes, lalu Lisensi. Bagian yang bukan pengguna akhir (Sprite, Struktur proyek, Pilihan desain, Alur kerja) dikumpulkan di "Untuk pengembang", sesudah Cara build dan tes.
+- **Peta jalan diletakkan sebelum Lisensi**, sesudah "Untuk pengembang": pembaca yang hanya ingin memakai aplikasi sudah selesai sebelum sampai ke sana, dan rencana ke depan menutup README tepat di atas lisensi dan penulis.
+- Peta jalan dibagi per milestone (v0.1.0 dan v0.2.0) dan ditulis per kelompok pekerjaan, bukan satu baris per issue, supaya tidak ikut usang tiap kali issue kecil selesai. Tahap 6 (tinjauan mingguan) pindah ke v0.2.0 sesuai milestone di GitHub; penanda "(opsional)" dihapus karena sudah diganti milestone.
+- Kalimat Privasi memuat "semua data lokal, tanpa akun dan jaringan" persis, karena itu kriteria #77 dan dijaga tes.
+- Tes `test_readme.py` menolak gambar yang berkas tujuannya belum ada. Tangkapan layar (#88) dan sprite asli (#71-#73) belum ada, jadi gambar itu baru ditambahkan bersama berkasnya, bukan lebih dulu.
