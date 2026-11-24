@@ -144,6 +144,7 @@ src/ctrlcoco/
   data.py      tambah dan baca area, task, daily_log (validasi tanggal ketat)
   streak.py    hitung streak dari daily_log
   mood.py      get_mood(conn, now): waspada, senang, atau tidur
+  aset.py      lokasi folder assets (dari kode atau di dalam .exe)
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan

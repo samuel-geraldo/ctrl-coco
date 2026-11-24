@@ -90,3 +90,10 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Menimpa: tanya dulu.** `file_yang_sudah_ada(folder)` menyebut file yang akan tertimpa; menu menampilkan pertanyaan dengan jawaban bawaan "Tidak". Folder tanpa file lama langsung ditulis tanpa bertanya.
 - **Kegagalan:** hanya `OSError` (folder hilang, izin ditolak, disk penuh) yang ditangkap menu dan ditampilkan dengan lokasi serta penyebab; aplikasi tidak keluar. Error lain adalah bug dan dibiarkan terlihat. Tes memakai folder yang tidak ada untuk memicu `OSError`, karena folder tanpa izin tidak bisa disimulasikan andal di Windows; jalur kodenya sama.
 - Dialog pilih folder memakai `QFileDialog` bawaan dan hanya memilih folder; nama file tetap, tidak ditanyakan.
+
+## Lokasi folder aset untuk .exe (#74)
+
+- `aset.py` punya satu fungsi lokasi: `folder_aset()` (dan `folder_sprite()` untuk `assets/sprites`). `sprites.py` dan `widget.py` memakainya; konstanta `SPRITE_DIR` yang dihitung dari `__file__` dihapus.
+- **Mode .exe** dikenali dari `sys.frozen` bersama `sys._MEIPASS`, yang dipasang PyInstaller; lokasinya `<_MEIPASS>/assets`. Bila `frozen` ada tapi `_MEIPASS` tidak, dipakai lokasi sumber, bukan error. Build di #75 harus menaruh isi `assets/` di folder `assets` dalam paket, supaya lokasi ini cocok.
+- **Dihitung setiap dipanggil, bukan saat impor**, dan `load_frames` serta `CocoWidget` menerima `sprite_dir=None` sebagai "pakai lokasi bawaan". Dengan begitu mode beku bisa disimulasikan di tes lewat `monkeypatch`; konstanta yang dihitung saat impor tidak ikut berubah.
+- Tes mode beku memakai `monkeypatch` pada `sys.frozen` dan `sys._MEIPASS`; berjalan tidak benar-benar di dalam .exe. Pemeriksaan di .exe sungguhan (sprite dimuat dari paket) ada di #75.

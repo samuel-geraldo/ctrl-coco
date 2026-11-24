@@ -30,7 +30,7 @@ from ctrlcoco.pesan import (
 )
 from ctrlcoco.posisi import posisi_form
 from ctrlcoco.ringkasan import JendelaRingkasan
-from ctrlcoco.sprites import SPRITE_DIR, load_frames
+from ctrlcoco.sprites import load_frames
 from ctrlcoco.streak import get_streak
 
 ANIMATION_INTERVAL_MS = 500   # jarak antar frame animasi
@@ -49,7 +49,7 @@ BUBBLE_STYLE = (
 
 
 class CocoWidget(QWidget):
-    def __init__(self, conn: sqlite3.Connection, sprite_dir: Path = SPRITE_DIR):
+    def __init__(self, conn: sqlite3.Connection, sprite_dir: Path | None = None):
         super().__init__()
         self.conn = conn
         self._drag_offset = None

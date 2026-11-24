@@ -4,7 +4,8 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPixmap
 
-SPRITE_DIR = Path(__file__).resolve().parents[2] / "assets" / "sprites"
+from ctrlcoco.aset import folder_sprite
+
 # Sprite digambar 64x64 (docs/sprite.md) lalu diperbesar 3x. Kelipatan bulat supaya
 # setiap piksel menjadi kotak 3x3 yang sama besar; 2,5x membuat piksel tidak rata.
 SPRITE_WIDTH = 3 * 64
@@ -35,11 +36,14 @@ def placeholder_frames(mood: str) -> list[QPixmap]:
     return frames
 
 
-def load_frames(mood: str, sprite_dir: Path = SPRITE_DIR) -> list[QPixmap]:
+def load_frames(mood: str, sprite_dir: Path | None = None) -> list[QPixmap]:
     """Frame animasi sebuah kondisi dari file <kondisi>_<n>.png, urut menurut n.
 
+    Tanpa `sprite_dir`, folder sprite dicari lewat `folder_sprite()` (sumber atau .exe).
     Jika tidak ada file yang bisa dimuat, yang dikembalikan gambar sementara.
     """
+    if sprite_dir is None:
+        sprite_dir = folder_sprite()
     pattern = re.compile(rf"{re.escape(mood)}_(\d+)\.png", re.IGNORECASE)
     numbered = []
     if sprite_dir.is_dir():
