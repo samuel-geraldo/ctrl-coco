@@ -79,6 +79,18 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Belum ada scroll: jendela memanjang mengikuti jumlah area. Cukup untuk v0.1.0; ditinjau lagi bila area banyak.
 - Bila database kosong, grafik dan on-time disembunyikan; yang tampil hanya "Belum ada data".
 
+## Ekspor CSV (#43)
+
+- `ekspor_csv(conn, folder)` di `export.py` (tanpa Qt) menulis dua file bernama tetap ke folder yang dipilih: `task.csv` dan `daily_log.csv`. File lama dengan nama itu ditimpa.
+- **Header `task.csv`:** `area, judul, tenggat, status, dibuat, selesai`. Kolom `area` berisi nama area (lewat `JOIN`), bukan `area_id`. Baris urut menurut id task.
+- **Header `daily_log.csv`:** `tanggal, claude_code, github, catatan`. Baris urut menurut tanggal.
+- **Header berbahasa Indonesia dan nilai diterjemahkan:** status `belum`/`selesai` (di database `todo`/`done`), centang `ya`/`tidak` (di database 1/0). Tujuannya supaya file langsung terbaca di spreadsheet tanpa kamus. Konsekuensinya, file ini bukan salinan mentah tabel dan belum bisa diimpor kembali (impor di luar cakupan).
+- **Nilai kosong (`NULL`) menjadi sel kosong**, bukan teks "None".
+- **UTF-8 dengan BOM** (`utf-8-sig`): Excel di Windows membaca file UTF-8 tanpa BOM sebagai ANSI, sehingga huruf non-ASCII rusak. `csv.DictReader` dengan `utf-8-sig` membuang BOM, jadi nama kolom pertama tidak tercemar. File ditulis dengan `newline=""` agar baris baru di dalam sel tidak rusak. Koma, kutip, dan baris baru di-escape oleh modul `csv`.
+- **Menimpa: tanya dulu.** `file_yang_sudah_ada(folder)` menyebut file yang akan tertimpa; menu menampilkan pertanyaan dengan jawaban bawaan "Tidak". Folder tanpa file lama langsung ditulis tanpa bertanya.
+- **Kegagalan:** hanya `OSError` (folder hilang, izin ditolak, disk penuh) yang ditangkap menu dan ditampilkan dengan lokasi serta penyebab; aplikasi tidak keluar. Error lain adalah bug dan dibiarkan terlihat. Tes memakai folder yang tidak ada untuk memicu `OSError`, karena folder tanpa izin tidak bisa disimulasikan andal di Windows; jalur kodenya sama.
+- Dialog pilih folder memakai `QFileDialog` bawaan dan hanya memilih folder; nama file tetap, tidak ditanyakan.
+
 ## Lokasi folder aset untuk .exe (#74)
 
 - `aset.py` punya satu fungsi lokasi: `folder_aset()` (dan `folder_sprite()` untuk `assets/sprites`). `sprites.py` dan `widget.py` memakainya; konstanta `SPRITE_DIR` yang dihitung dari `__file__` dihapus.

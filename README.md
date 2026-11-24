@@ -37,7 +37,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline
-- Dari menu klik kanan: catat log hari ini, tambah task (dan area baru), dan tandai task selesai
+- Dari menu klik kanan: catat log hari ini, tambah task (dan area baru), tandai task selesai, dan ekspor data ke CSV
 - Ekspresi Coco mengikuti kondisi, dengan animasi frame bergantian
 - Data dibaca ulang otomatis setiap 60 detik
 - Data tersimpan lokal di SQLite; tidak ada akun, tidak ada jaringan
@@ -68,7 +68,7 @@ $env:PYTHONPATH = "src"
 python -m ctrlcoco
 ```
 
-Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -91,6 +91,17 @@ Klik **Simpan**. Jika ada isian yang salah, pesannya muncul di form dengan warna
 ### Menyelesaikan task
 
 Klik kanan widget lalu pilih **Selesaikan task…**. Form menampilkan semua task yang belum selesai, dengan deadline paling awal di atas dan task tanpa deadline di bawah. Pilih satu task lalu klik **Tandai selesai**. Task itu langsung hilang dari task terdekat di widget. Status selesai belum bisa dibatalkan dari widget.
+
+### Ekspor ke CSV
+
+Klik kanan widget lalu pilih **Ekspor CSV…** dan pilih folder tujuan. Dua file ditulis ke folder itu, bernama tetap:
+
+| File | Kolom |
+| --- | --- |
+| `task.csv` | `area`, `judul`, `tenggat`, `status`, `dibuat`, `selesai` |
+| `daily_log.csv` | `tanggal`, `claude_code`, `github`, `catatan` |
+
+`area` berisi nama area. `status` bernilai `belum` atau `selesai`, centang log bernilai `ya` atau `tidak`, dan nilai yang kosong ditulis sebagai sel kosong. File memakai UTF-8 dengan BOM, jadi bisa langsung dibuka di Excel tanpa huruf yang rusak. Bila `task.csv` atau `daily_log.csv` sudah ada di folder itu, widget bertanya dulu sebelum menimpanya. Bila gagal menulis (misalnya folder tidak bisa ditulisi), pesan penyebabnya muncul dan widget tetap berjalan. Impor dari CSV belum ada.
 
 ### Lokasi data
 
@@ -142,6 +153,7 @@ src/ctrlcoco/
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
   grafik_area.py grafik batang completion rate per area dan teks on-time rate
+  export.py    ekspor task dan daily_log ke CSV (tanpa Qt)
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar

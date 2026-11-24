@@ -3,8 +3,17 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QVBoxLayout,
+    QWidget,
+)
 
+from ctrlcoco import export
 from ctrlcoco.data import DATE_FORMAT, get_daily_log, get_nearest_task
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
@@ -250,7 +259,7 @@ class CocoWidget(QWidget):
             self._posisi_tekan = None
             self.buka_form_log()
 
-    # --- klik kanan: log hari ini, tambah task, selesaikan task, ringkasan, keluar ---
+    # --- klik kanan: log hari ini, tambah task, selesaikan task, ringkasan, ekspor, keluar ---
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
@@ -258,6 +267,7 @@ class CocoWidget(QWidget):
         menu.addAction("Tambah task…", self.buka_form_tambah_task)
         menu.addAction("Selesaikan task…", self.buka_form_selesai)
         menu.addAction("Ringkasan…", self.buka_ringkasan)
+        menu.addAction("Ekspor CSV…", self.buka_ekspor)
         menu.addSeparator()
         menu.addAction("Keluar", QApplication.quit)
         menu.exec(event.globalPos())
@@ -296,6 +306,45 @@ class CocoWidget(QWidget):
         jendela = JendelaRingkasan(self.conn, parent=self)
         jendela.show()
         return jendela
+
+    def buka_ekspor(self) -> tuple[Path, Path] | None:
+        """Pilih folder, tanya dulu bila file lama akan tertimpa, lalu tulis dua CSV.
+
+        Mengembalikan kedua path bila berhasil, None bila dibatalkan atau gagal.
+        """
+        # Dialog bawaan Qt dengan Coco sebagai parent, supaya tampil di depan Coco yang
+        # always on top. Berhenti di sini sampai ditutup (dialog sesaat, bukan form).
+        pilihan = QFileDialog.getExistingDirectory(self, "Pilih folder ekspor CSV")
+        if not pilihan:  # dialog ditutup tanpa memilih
+            return None
+        folder = Path(pilihan)
+
+        ada = export.file_yang_sudah_ada(folder)
+        if ada:
+            daftar = "\n".join(f"• {p.name}" for p in ada)
+            jawab = QMessageBox.question(
+                self,
+                "CtrlCoco",
+                f"File ini sudah ada di folder itu dan akan ditimpa:\n\n{daftar}\n\nTimpa?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,  # jawaban bawaan: aman, tidak menimpa
+            )
+            if jawab != QMessageBox.Yes:
+                return None
+
+        # Hanya OSError (izin ditolak, disk penuh, folder hilang) yang ditangkap: error
+        # lain adalah bug dan harus tetap terlihat.
+        try:
+            hasil = export.ekspor_csv(self.conn, folder)
+        except OSError as e:
+            QMessageBox.critical(
+                self,
+                "CtrlCoco",
+                f"Ekspor gagal.\n\nLokasi: {folder}\n\nPenyebab: {e.strerror or e}",
+            )
+            return None
+        QMessageBox.information(self, "CtrlCoco", f"Selesai. Dua file ditulis ke:\n{folder}")
+        return hasil
 
     def _buka_form(self, form):
         # Widget menjadi parent form, supaya form tampil di depan Coco yang always on top.
