@@ -113,7 +113,7 @@ Untuk mendapat satu berkas `.exe` yang jalan tanpa Python terpasang (Windows). D
 
 ```bat
 py -m venv .venv
-.venv\Scriptsctivate
+.venv\Scripts\activate
 pip install -r requirements-build.txt
 python -m PyInstaller packaging/ctrlcoco.spec --noconfirm
 ```
