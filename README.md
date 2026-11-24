@@ -228,6 +228,12 @@ Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review l
 
 Semua data tinggal di komputer sendiri. Repo ini publik, jadi database, `.venv`, dan data pribadi tidak pernah di-commit; data contoh di `scripts/seed_demo.py` sengaja generik (kuliah, portofolio).
 
+## Lisensi
+
+Kode CtrlCoco berlisensi MIT; teks lengkapnya ada di [LICENSE](LICENSE).
+
+Yang **tidak** termasuk lisensi MIT dan tidak boleh dipakai ulang tanpa izin: nama CtrlCoco, logo (`assets/logo.*`), dan karakter Coco beserta sprite-nya (`assets/sprites/`). Rinciannya ada di [assets/LICENSE-ASSETS.md](assets/LICENSE-ASSETS.md).
+
 ## Penulis
 
 Samuel Geraldo Tobia Lumika, [github.com/samuel-geraldo](https://github.com/samuel-geraldo)
