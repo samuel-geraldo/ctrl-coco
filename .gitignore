@@ -225,3 +225,6 @@ __marimo__/
 *.sqlite
 *.sqlite3
 .env
+
+# Berkas build PyInstaller yang memang di-commit (aturan *.spec di atas mengabaikan sisanya)
+!packaging/ctrlcoco.spec
