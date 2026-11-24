@@ -97,3 +97,14 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Mode .exe** dikenali dari `sys.frozen` bersama `sys._MEIPASS`, yang dipasang PyInstaller; lokasinya `<_MEIPASS>/assets`. Bila `frozen` ada tapi `_MEIPASS` tidak, dipakai lokasi sumber, bukan error. Build di #75 harus menaruh isi `assets/` di folder `assets` dalam paket, supaya lokasi ini cocok.
 - **Dihitung setiap dipanggil, bukan saat impor**, dan `load_frames` serta `CocoWidget` menerima `sprite_dir=None` sebagai "pakai lokasi bawaan". Dengan begitu mode beku bisa disimulasikan di tes lewat `monkeypatch`; konstanta yang dihitung saat impor tidak ikut berubah.
 - Tes mode beku memakai `monkeypatch` pada `sys.frozen` dan `sys._MEIPASS`; berjalan tidak benar-benar di dalam .exe. Pemeriksaan di .exe sungguhan (sprite dimuat dari paket) ada di #75.
+
+## Build .exe dengan PyInstaller (#75)
+
+- **Satu berkas (onefile), tanpa konsol.** `packaging/ctrlcoco.spec` menghasilkan `dist/CtrlCoco.exe`. Aplikasi ini jendela, dan kesalahan sudah ditampilkan lewat `QMessageBox`, jadi konsol tidak perlu. Onefile lebih lambat saat start (mengurai paket ke folder sementara) tetapi memenuhi kriteria "satu .exe" dan paling mudah dibagikan.
+- **`assets/` ikut seluruhnya** dan mendarat di `<paket>/assets`, tempat `aset.folder_aset()` mencarinya (#74). Sprite yang ditambahkan nanti (#71-#73) otomatis ikut tanpa mengubah spec.
+- **Titik masuk `packaging/entry.py`**, bukan `python -m ctrlcoco`: PyInstaller butuh skrip. Kodenya hanya memanggil `main()` yang sama, jadi perilaku .exe dan versi sumber sama, termasuk `default_db_path()`.
+- **Dependensi build terpisah** di `requirements-build.txt` (PyInstaller terkunci versinya), supaya CI tes dan pengembang biasa tidak memasangnya.
+- **Berkas `.spec` perlu pengecualian di `.gitignore`** (`!packaging/ctrlcoco.spec`), karena `*.spec` diabaikan secara umum. Tes menjaganya agar tidak hilang diam-diam.
+- **Modul Qt yang tidak dipakai dikecualikan** (WebEngine, Pdf, Qml, Quick, 3D, Multimedia, Charts) agar ukuran tidak membengkak.
+- **Belum ada ikon `.exe`.** Logo 608x688 tidak persegi; ikon yang layak butuh berkas `.ico` yang digambar tersendiri. Ditunda, bukan bagian kriteria #75.
+- **Workflow `build-exe`** (runner Windows) membangun .exe, memastikan `dist/` hanya berisi `CtrlCoco.exe`, menjalankannya sepuluh detik dengan database sementara (harus tetap hidup dan membuat database), lalu mengunggahnya sebagai artifact. Dijalankan manual dan pada pull request yang menyentuh `src/`, `assets/`, atau `packaging/`. Pemeriksaan di Windows tanpa Python dan sprite yang dimuat dari paket tetap manual di laptop pribadi (kriteria #75); build ini belum membuktikannya.

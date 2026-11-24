@@ -107,6 +107,21 @@ Klik kanan widget lalu pilih **Ekspor CSV…** dan pilih folder tujuan. Dua file
 
 Database harian disimpan di `%APPDATA%\CtrlCoco\ctrlcoco.db` (folder dibuat otomatis), jadi tidak bergantung pada folder tempat widget dijalankan dan tidak ikut masuk repo.
 
+### Membangun CtrlCoco.exe
+
+Untuk mendapat satu berkas `.exe` yang jalan tanpa Python terpasang (Windows). Dari akar repo:
+
+```bat
+py -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements-build.txt
+python -m PyInstaller packaging/ctrlcoco.spec --noconfirm
+```
+
+Hasilnya `dist\CtrlCoco.exe`. Database tetap di `%APPDATA%\CtrlCoco\ctrlcoco.db`, sama dengan versi sumber, bukan di folder `.exe`. Folder `assets` ikut tertanam di dalam `.exe`.
+
+Tanpa membangun sendiri: di GitHub, tab **Actions**, workflow **build-exe**, pilih **Run workflow**, lalu unduh artifact **CtrlCoco-exe** dari halaman hasilnya. Workflow yang sama berjalan pada pull request yang mengubah `src/`, `assets/`, atau `packaging/`.
+
 ### Mencoba dengan data contoh
 
 Untuk melihat widget terisi tanpa menyentuh data harianmu, jalankan skrip data contoh. Skrip menulis ke `demo.db` yang terpisah, dan menolak menimpa database yang sudah berisi.
@@ -154,6 +169,9 @@ src/ctrlcoco/
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
   grafik_area.py grafik batang completion rate per area dan teks on-time rate
   export.py    ekspor task dan daily_log ke CSV (tanpa Qt)
+packaging/
+  ctrlcoco.spec konfigurasi build PyInstaller (satu .exe)
+  entry.py      titik masuk .exe
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
 tests/         pytest, database di memori, widget diuji tanpa layar
