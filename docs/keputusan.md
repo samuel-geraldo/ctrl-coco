@@ -78,3 +78,10 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Persen ditampilkan bulat, setengah dibulatkan ke atas (12,5 menjadi 13), dan selalu ditemani "(selesai/total)" supaya angka aslinya terlihat.
 - Belum ada scroll: jendela memanjang mengikuti jumlah area. Cukup untuk v0.1.0; ditinjau lagi bila area banyak.
 - Bila database kosong, grafik dan on-time disembunyikan; yang tampil hanya "Belum ada data".
+
+## Lokasi folder aset untuk .exe (#74)
+
+- `aset.py` punya satu fungsi lokasi: `folder_aset()` (dan `folder_sprite()` untuk `assets/sprites`). `sprites.py` dan `widget.py` memakainya; konstanta `SPRITE_DIR` yang dihitung dari `__file__` dihapus.
+- **Mode .exe** dikenali dari `sys.frozen` bersama `sys._MEIPASS`, yang dipasang PyInstaller; lokasinya `<_MEIPASS>/assets`. Bila `frozen` ada tapi `_MEIPASS` tidak, dipakai lokasi sumber, bukan error. Build di #75 harus menaruh isi `assets/` di folder `assets` dalam paket, supaya lokasi ini cocok.
+- **Dihitung setiap dipanggil, bukan saat impor**, dan `load_frames` serta `CocoWidget` menerima `sprite_dir=None` sebagai "pakai lokasi bawaan". Dengan begitu mode beku bisa disimulasikan di tes lewat `monkeypatch`; konstanta yang dihitung saat impor tidak ikut berubah.
+- Tes mode beku memakai `monkeypatch` pada `sys.frozen` dan `sys._MEIPASS`; berjalan tidak benar-benar di dalam .exe. Pemeriksaan di .exe sungguhan (sprite dimuat dari paket) ada di #75.
