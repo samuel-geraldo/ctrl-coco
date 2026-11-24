@@ -6,10 +6,9 @@ pun; tes ini mulai bekerja saat sprite ditambahkan (#71-#73).
 import re
 
 import pytest
+from ctrlcoco.aset import folder_sprite
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
-
-from ctrlcoco.sprites import SPRITE_DIR
 
 UKURAN_SPRITE = 64
 KONDISI_SPRITE = ("senang", "waspada", "tidur", "lompat")
@@ -55,7 +54,7 @@ def simpan_png(path, ukuran=UKURAN_SPRITE, latar=Qt.transparent):
 # --- folder sprite sungguhan ---
 
 def test_aset_sprite_di_repo_sesuai_aturan(app):
-    assert masalah_aset(SPRITE_DIR) == []
+    assert masalah_aset(folder_sprite()) == []
 
 
 # --- pemeriksa itu sendiri, dengan folder sementara ---
