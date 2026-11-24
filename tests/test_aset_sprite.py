@@ -6,9 +6,10 @@ pun; tes ini mulai bekerja saat sprite ditambahkan (#71-#73).
 import re
 
 import pytest
-from ctrlcoco.aset import folder_sprite
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QImage
+
+from ctrlcoco.aset import folder_sprite
 
 UKURAN_SPRITE = 64
 KONDISI_SPRITE = ("senang", "waspada", "tidur", "lompat")
