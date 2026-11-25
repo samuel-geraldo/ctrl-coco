@@ -3,8 +3,6 @@ from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -13,14 +11,14 @@ from PySide6.QtWidgets import (
 )
 
 from ctrlcoco.data import complete_task, list_todo_untuk_selesai
-from ctrlcoco.form_task import ERROR_STYLE
+from ctrlcoco.form_dasar import FormDasar
 
 TEKS_KOSONG = "Tidak ada task yang perlu diselesaikan"
 # Tempat menyimpan judul di tiap baris daftar, di samping id (Qt.UserRole).
 _PERAN_JUDUL = Qt.UserRole + 1
 
 
-class FormSelesaikanTask(QDialog):
+class FormSelesaikanTask(FormDasar):
     """Form untuk menandai satu task 'todo' sebagai selesai."""
 
     def __init__(
@@ -35,24 +33,15 @@ class FormSelesaikanTask(QDialog):
         # Judul task yang berhasil diselesaikan; dibaca widget untuk perayaan (#93).
         self.judul_selesai = None
         self.setWindowTitle("Selesaikan task")
-        # Dihapus dari memori setelah ditutup, supaya tidak menumpuk.
-        self.setAttribute(Qt.WA_DeleteOnClose)
 
         self.daftar = QListWidget()
         self.kosong_label = QLabel(TEKS_KOSONG)
         self.kosong_label.hide()
 
-        self.error_label = QLabel()
-        self.error_label.setStyleSheet(ERROR_STYLE)
-        self.error_label.setWordWrap(True)
-        self.error_label.hide()
-
-        tombol = QDialogButtonBox()
-        self.tombol_selesai = tombol.addButton("Tandai selesai", QDialogButtonBox.AcceptRole)
-        self.tombol_batal = tombol.addButton("Batal", QDialogButtonBox.RejectRole)
+        tombol = self._buat_tombol("Tandai selesai")
+        self.tombol_selesai = self.tombol_utama
         self.tombol_selesai.setEnabled(False)  # aktif setelah ada task yang dipilih
         tombol.accepted.connect(self.tandai_selesai)
-        tombol.rejected.connect(self.reject)
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.daftar)
@@ -115,7 +104,3 @@ class FormSelesaikanTask(QDialog):
             return
         self.judul_selesai = dipilih[0].data(_PERAN_JUDUL)
         self.accept()
-
-    def _tampilkan_error(self, pesan: str) -> None:
-        self.error_label.setText(pesan)
-        self.error_label.show()

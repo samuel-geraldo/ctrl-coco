@@ -1,23 +1,19 @@
 import sqlite3
 from datetime import datetime
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
-    QDialogButtonBox,
     QFormLayout,
-    QLabel,
     QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from ctrlcoco.data import DATE_FORMAT, get_daily_log, set_daily_log
-from ctrlcoco.form_task import ERROR_STYLE
+from ctrlcoco.form_dasar import FormDasar
 
 
-class FormLogHarian(QDialog):
+class FormLogHarian(FormDasar):
     """Form log hari ini: centang Claude Code dan GitHub, plus catatan opsional."""
 
     def __init__(self, conn: sqlite3.Connection, now: datetime, parent: QWidget | None = None):
@@ -27,25 +23,16 @@ class FormLogHarian(QDialog):
         # supaya bisa dites dengan tanggal tetap.
         self.tanggal = now.strftime(DATE_FORMAT)
         self.setWindowTitle(f"Log hari ini ({self.tanggal})")
-        # Dihapus dari memori setelah ditutup, supaya tidak menumpuk.
-        self.setAttribute(Qt.WA_DeleteOnClose)
 
         self.claude_code_check = QCheckBox("Claude Code")
         self.github_check = QCheckBox("GitHub")
         self.catatan_edit = QLineEdit()
         self.catatan_edit.setPlaceholderText("opsional")
 
-        self.error_label = QLabel()
-        self.error_label.setStyleSheet(ERROR_STYLE)
-        self.error_label.setWordWrap(True)
-        self.error_label.hide()
-
-        tombol = QDialogButtonBox()
-        self.tombol_simpan = tombol.addButton("Simpan", QDialogButtonBox.AcceptRole)
-        self.tombol_batal = tombol.addButton("Batal", QDialogButtonBox.RejectRole)
+        tombol = self._buat_tombol("Simpan")
+        self.tombol_simpan = self.tombol_utama
         self.tombol_simpan.setDefault(True)
         tombol.accepted.connect(self.simpan)
-        tombol.rejected.connect(self.reject)
 
         isian = QFormLayout()
         isian.addRow(self.claude_code_check)
@@ -92,7 +79,3 @@ class FormLogHarian(QDialog):
             self._tampilkan_error(f"Gagal menyimpan ke database: {e}")
             return
         self.accept()
-
-    def _tampilkan_error(self, pesan: str) -> None:
-        self.error_label.setText(pesan)
-        self.error_label.show()
