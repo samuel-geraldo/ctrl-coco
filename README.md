@@ -164,6 +164,18 @@ python -m pytest
 
 Tes widget berjalan tanpa layar (`QT_QPA_PLATFORM=offscreen`). GitHub Actions menjalankan seluruh tes di Windows dengan Python 3.14 pada setiap pull request dan setiap push ke `main`.
 
+### Membuat gambar README
+
+Gambar widget dan jendela Ringkasan di README dibuat oleh skrip, bukan dipotret manual, jadi bisa dibuat ulang kapan saja dan tidak memuat data pribadi. Dari akar repo:
+
+```bat
+set PYTHONPATH=src
+python scripts/seed_demo.py
+python scripts/tangkapan_layar.py
+```
+
+Skrip berjalan tanpa layar dan menulis empat PNG ke `docs/gambar/`: `widget_senang.png`, `widget_waspada.png`, `widget_tidur.png`, dan `ringkasan.png`. Ketiga kondisi Coco dibuat dari database sementara dengan waktu tetap. Jendela Ringkasan dibaca dari `demo.db`, dan isinya mengikuti tanggal hari ini, jadi hapus `demo.db` lalu jalankan `seed_demo.py` lagi bila gambarnya sudah lama. Skrip menolak database harian.
+
 ### Cek kode (lint)
 
 ```bat
