@@ -22,7 +22,35 @@ WAKTU_TUNGGU_KUNCI = 1.0
 # 1 = kolom tanggal dijaga CHECK (lihat CEK_TANGGAL dan CEK_WAKTU).
 # 2 = area.name dan task.title tidak boleh kosong (CEK_NAMA), dan area.name unik
 #     tanpa membedakan huruf besar-kecil (COLLATE NOCASE).
-SCHEMA_VERSION = 2
+# 3 = view v_task_selesai (lihat SQL_VIEW_TASK_SELESAI); tabel tidak berubah.
+SCHEMA_VERSION = 3
+# Versi terakhir yang mengubah tabel. Database di bawahnya dibangun ulang oleh _migrasi;
+# di atasnya (v3 dan seterusnya) hanya view yang dibuat ulang, tanpa menyalin data.
+VERSI_TABEL = 2
+
+# View untuk analitik: task selesai beserta nama area dan status tepat waktu, supaya
+# penyaringan dan penggabungan yang sama tidak ditulis ulang di tiap fungsi. Kolom
+# `tepat_waktu` bernilai 1 (selesai pada atau sebelum deadline), 0 (terlambat), atau NULL
+# (task tanpa deadline). Kedua kolom waktu berformat `YYYY-MM-DD HH:MM`, jadi urutan
+# teksnya sama dengan urutan waktu.
+SQL_VIEW_TASK_SELESAI = """
+CREATE VIEW v_task_selesai AS
+SELECT task.id AS task_id,
+       task.area_id AS area_id,
+       area.name AS area_nama,
+       task.title AS judul,
+       task.deadline AS deadline,
+       task.created_at AS dibuat,
+       task.completed_at AS selesai,
+       CASE
+           WHEN task.deadline IS NULL THEN NULL
+           WHEN task.completed_at <= task.deadline THEN 1
+           ELSE 0
+       END AS tepat_waktu
+FROM task
+JOIN area ON area.id = task.area_id
+WHERE task.status = 'done'
+"""
 
 # CHECK menolak teks tanggal yang formatnya salah, dari jalur mana pun (kode, skrip,
 # atau edit manual). Dua hal penting di sini:
@@ -122,18 +150,32 @@ def connect(
 def init_db(conn: sqlite3.Connection) -> None:
     """Buat tabel jika belum ada, dan naikkan database lama ke skema terbaru.
 
-    Aman dipanggil berulang. Database lama (user_version 0 atau 1) dinaikkan langsung
-    ke versi terbaru dalam satu langkah. Jika ada baris yang melanggar aturan baru
+    Aman dipanggil berulang. Database lama (user_version 0 atau 1) dinaikkan lebih dulu
+    ke versi tabel terakhir dalam satu langkah. Jika ada baris yang melanggar aturan baru
     (tanggal berformat salah, nama kosong, nama area kembar), ValueError menyebut
-    baris-baris itu dan database tidak diubah sama sekali.
+    baris-baris itu dan database tidak diubah sama sekali. Setelah tabel siap, view dibuat
+    untuk database yang belum berversi 3; data di tabel tidak disentuh.
     """
     versi = conn.execute("PRAGMA user_version").fetchone()[0]
-    if versi < SCHEMA_VERSION:
+    if versi < VERSI_TABEL:
         _migrasi(conn)
     conn.execute(_buat_area())
     conn.execute(_buat_task())
     conn.execute(_buat_daily_log())
+    if versi < SCHEMA_VERSION:
+        _buat_view(conn)
     conn.commit()
+
+
+def _buat_view(conn: sqlite3.Connection) -> None:
+    """Buat ulang view, lalu catat versi terbaru. Tabel dan isinya tidak diubah.
+
+    DROP lalu CREATE (bukan IF NOT EXISTS), supaya definisi yang baru menggantikan yang
+    lama bila suatu hari berubah.
+    """
+    conn.execute("DROP VIEW IF EXISTS v_task_selesai")
+    conn.execute(SQL_VIEW_TASK_SELESAI)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
 
 def _cari_pelanggaran(conn: sqlite3.Connection, ada: set[str]) -> list[str]:
@@ -174,7 +216,7 @@ def _cari_pelanggaran(conn: sqlite3.Connection, ada: set[str]) -> list[str]:
 
 
 def _migrasi(conn: sqlite3.Connection) -> None:
-    """Naikkan database v0 atau v1 langsung ke SCHEMA_VERSION dalam satu transaksi."""
+    """Naikkan database v0 atau v1 langsung ke VERSI_TABEL dalam satu transaksi."""
     ada = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     tabel = [t for t in _TABEL_MIGRASI if t[0] in ada]
 
@@ -227,7 +269,7 @@ def _migrasi(conn: sqlite3.Connection) -> None:
                     "Perbaiki dulu (misalnya dengan DB Browser for SQLite): "
                     + "; ".join(f"{r[0]}.id={r[1]} (tidak ada di tabel {r[2]})" for r in yatim)
                 )
-            conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            conn.execute(f"PRAGMA user_version = {VERSI_TABEL}")
         except BaseException:
             conn.rollback()
             raise
