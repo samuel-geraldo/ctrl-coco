@@ -59,6 +59,24 @@ Satu baris untuk satu hari, diisi manual.
 | github | INTEGER | 1 jika hari itu ada aktivitas GitHub, 0 jika tidak |
 | note | TEXT | catatan bebas, boleh kosong |
 
+## View
+
+### v_task_selesai
+Task yang sudah selesai (`status = 'done'`) digabung dengan nama areanya, plus penanda tepat waktu. View ini menaruh penyaringan dan penggabungan yang sama di satu tempat, supaya fungsi analitik di `analytics.py` tidak menyalinnya. Isinya selalu mengikuti tabel `task` dan `area`; tidak menyimpan data sendiri.
+
+| Kolom | Asal | Keterangan |
+|---|---|---|
+| task_id | `task.id` | id task |
+| area_id | `task.area_id` | id area |
+| area_nama | `area.name` | nama area |
+| judul | `task.title` | judul task |
+| deadline | `task.deadline` | boleh kosong |
+| dibuat | `task.created_at` | waktu dibuat |
+| selesai | `task.completed_at` | waktu selesai |
+| tepat_waktu | dihitung | 1 bila `selesai <= deadline` (selesai tepat pada deadline dihitung tepat waktu), 0 bila terlambat, kosong (NULL) bila task tanpa deadline |
+
+Task yang masih `todo` tidak ada di view ini. Kedua kolom waktu berformat `YYYY-MM-DD HH:MM`, jadi perbandingan teksnya sama dengan perbandingan waktunya. Saat ini hanya `on_time_rate` yang memakainya; `completion_rate_per_area` tidak, karena penyebutnya memuat semua task, termasuk yang masih `todo`. View untuk `daily_log` belum ada.
+
 ## Relasi
 
 - **area → task: satu-ke-banyak.** Satu area boleh punya nol atau banyak task (`||--o{`); setiap task wajib punya tepat satu area. Relasi disimpan lewat FK `task.area_id`.
@@ -106,7 +124,8 @@ Versi skema disimpan di `PRAGMA user_version`:
 |---|---|
 | 0 | skema awal, tanpa `CHECK` tanggal dan nama |
 | 1 | `CHECK` format tanggal pada `task.deadline` dan `daily_log.log_date` |
-| 2 | aturan nama: `CHECK` tidak kosong pada `area.name` dan `task.title`, `UNIQUE COLLATE NOCASE` pada `area.name` (versi sekarang) |
+| 2 | aturan nama: `CHECK` tidak kosong pada `area.name` dan `task.title`, `UNIQUE COLLATE NOCASE` pada `area.name` |
+| 3 | view `v_task_selesai`; tabel tidak berubah (versi sekarang) |
 
 `init_db` menaikkan database v0 atau v1 langsung ke v2 dalam satu langkah:
 
@@ -115,3 +134,5 @@ Versi skema disimpan di `PRAGMA user_version`:
 3. ID tidak berubah, dan ID baru melanjutkan ID terbesar yang pernah dipakai.
 
 Migrasi hanya jalan sekali; pemanggilan berikutnya tidak mengubah apa pun.
+
+Dari v2 ke v3 hanya view yang dibuat: `DROP VIEW IF EXISTS` lalu `CREATE VIEW`, kemudian `user_version` jadi 3. Tabel tidak dibangun ulang dan datanya tidak disalin, jadi data lama tidak berubah. `DROP` lebih dulu supaya definisi view yang baru menggantikan yang lama bila suatu hari berubah. Database v0 dan v1 lebih dulu dinaikkan ke v2 oleh langkah di atas, lalu mendapat view yang sama.
