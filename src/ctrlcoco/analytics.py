@@ -60,11 +60,10 @@ def completion_rate_per_area(
 
 _SQL_ON_TIME = """
 SELECT COUNT(*) AS total,
-       COALESCE(SUM(completed_at <= deadline), 0) AS tepat_waktu
-FROM task
-WHERE status = 'done'
-  AND deadline IS NOT NULL
-  AND date(completed_at) BETWEEN ? AND ?
+       COALESCE(SUM(tepat_waktu), 0) AS tepat_waktu
+FROM v_task_selesai
+WHERE deadline IS NOT NULL
+  AND date(selesai) BETWEEN ? AND ?
 """
 
 
