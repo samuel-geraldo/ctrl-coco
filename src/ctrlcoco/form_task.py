@@ -2,16 +2,13 @@ import sqlite3
 from collections.abc import Callable
 from datetime import datetime
 
-from PySide6.QtCore import QDateTime, Qt
+from PySide6.QtCore import QDateTime
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDateTimeEdit,
-    QDialog,
-    QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
@@ -20,8 +17,8 @@ from PySide6.QtWidgets import (
 
 from ctrlcoco.data import TIME_FORMAT, list_areas, simpan_task_baru
 from ctrlcoco.deadline import deadline_cepat
+from ctrlcoco.form_dasar import FormDasar
 
-ERROR_STYLE = "QLabel { color: #c62828; }"
 FORMAT_TAMPIL = "dd/MM/yyyy HH:mm"  # tampilan pemilih; yang disimpan tetap TIME_FORMAT
 TEKS_TOMBOL_CEPAT = {
     "hari_ini": "Hari ini 23:59",
@@ -30,7 +27,7 @@ TEKS_TOMBOL_CEPAT = {
 }
 
 
-class FormTambahTask(QDialog):
+class FormTambahTask(FormDasar):
     """Form tambah task. Tampilan saja; aturan dan penyimpanan ada di simpan_task_baru."""
 
     def __init__(
@@ -44,9 +41,6 @@ class FormTambahTask(QDialog):
         # Sumber waktu untuk tombol cepat; tes menggantinya dengan jam tiruan.
         self._jam = jam
         self.setWindowTitle("Tambah task")
-        # Dihapus dari memori setelah ditutup, supaya membuka form berkali-kali
-        # tidak meninggalkan dialog lama yang menumpuk.
-        self.setAttribute(Qt.WA_DeleteOnClose)
 
         # Combo yang bisa diketik: pilih area lama atau ketik nama area baru.
         self.area_combo = QComboBox()
@@ -85,18 +79,10 @@ class FormTambahTask(QDialog):
         kolom_deadline.addWidget(self.deadline_edit)
         kolom_deadline.addLayout(baris_cepat)
 
-        # Pesan error tampil di sini; form tetap terbuka dan isian tidak dihapus.
-        self.error_label = QLabel()
-        self.error_label.setStyleSheet(ERROR_STYLE)
-        self.error_label.setWordWrap(True)
-        self.error_label.hide()
-
-        tombol = QDialogButtonBox()
-        self.tombol_simpan = tombol.addButton("Simpan", QDialogButtonBox.AcceptRole)
-        self.tombol_batal = tombol.addButton("Batal", QDialogButtonBox.RejectRole)
+        tombol = self._buat_tombol("Simpan")
+        self.tombol_simpan = self.tombol_utama
         self.tombol_simpan.setDefault(True)  # Enter = Simpan
         tombol.accepted.connect(self.simpan)
-        tombol.rejected.connect(self.reject)
 
         isian = QFormLayout()
         isian.addRow("Area", self.area_combo)
@@ -144,7 +130,3 @@ class FormTambahTask(QDialog):
             self._tampilkan_error(f"Gagal menyimpan ke database: {e}")
             return
         self.accept()
-
-    def _tampilkan_error(self, pesan: str) -> None:
-        self.error_label.setText(pesan)
-        self.error_label.show()
