@@ -438,7 +438,7 @@ def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(tmp_path):
 
     db.init_db(c)
 
-    assert c.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION == 2
+    assert c.execute("PRAGMA user_version").fetchone()[0] == db.SCHEMA_VERSION
     assert [tuple(r) for r in c.execute("SELECT id, name FROM area ORDER BY id")] == [
         (1, "Kuliah"), (2, "Magang"),
     ]
