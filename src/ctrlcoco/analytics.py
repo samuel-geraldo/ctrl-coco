@@ -133,6 +133,41 @@ def median_penyelesaian_per_area(
     ]
 
 
+@dataclass(frozen=True)
+class ProduktivitasHari:
+    nama: str  # "Senin" sampai "Minggu"
+    task_selesai: int
+    hari_valid: int  # banyaknya tanggal valid yang jatuh pada hari itu
+
+
+NAMA_HARI = ("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
+
+_SQL_SELESAI_PER_HARI = """
+SELECT CAST(strftime('%w', selesai) AS INTEGER) AS w, COUNT(*) AS jumlah
+FROM v_task_selesai
+WHERE date(selesai) BETWEEN ? AND ?
+GROUP BY w
+"""
+
+
+def produktivitas_per_hari(
+    conn: sqlite3.Connection, awal: date, akhir: date
+) -> list[ProduktivitasHari]:
+    """Task selesai dan hari valid untuk tiap hari Senin sampai Minggu.
+
+    Task dihitung menurut tanggal `completed_at`; hari valid memakai `hari_valid`.
+    Rentang inklusif. Selalu 7 baris berurutan Senin sampai Minggu, termasuk yang 0.
+    """
+    selesai = [0] * 7
+    for b in conn.execute(_SQL_SELESAI_PER_HARI, (awal.isoformat(), akhir.isoformat())):
+        # "%w" SQLite: 0 = Minggu. Digeser supaya 0 = Senin, sama dengan date.weekday().
+        selesai[(b["w"] + 6) % 7] = b["jumlah"]
+    valid = [0] * 7
+    for tanggal in hari_valid(conn, awal, akhir):
+        valid[tanggal.weekday()] += 1
+    return [ProduktivitasHari(*baris) for baris in zip(NAMA_HARI, selesai, valid, strict=True)]
+
+
 # Hanya konstanta modul yang digabung ke teks SQL; nilai masukan lewat parameter "?".
 _SQL_HARI_VALID = (
     "SELECT log_date FROM daily_log WHERE "

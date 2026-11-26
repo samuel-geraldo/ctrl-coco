@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
-from ctrlcoco.analytics import MedianArea, RateArea
+from ctrlcoco.analytics import MedianArea, ProduktivitasHari, RateArea
 
 LEBAR_BATANG_PX = 200
 TINGGI_BATANG_PX = 14
@@ -13,6 +13,7 @@ TEKS_KOSONG = "belum ada task"
 TEKS_ON_TIME_KOSONG = "On-time rate: belum ada task selesai dengan deadline"
 JUDUL_MEDIAN = "Median waktu selesai"
 TEKS_MEDIAN_KOSONG = "belum ada task selesai"
+JUDUL_PER_HARI = "Produktivitas per hari"
 
 
 def _persen(rate: float) -> int:
@@ -48,6 +49,14 @@ def teks_median(hasil: list[MedianArea]) -> str:
         else:
             nilai = f"{area.jam:.1f}".replace(".", ",") + " jam"
         baris.append(f"{area.nama}: {nilai}")
+    return "\n".join(baris)
+
+
+def teks_per_hari(hasil: list[ProduktivitasHari]) -> str:
+    """Satu baris per hari: "Senin: 3 task selesai, 2 hari valid"."""
+    baris = [f"{JUDUL_PER_HARI}:"]
+    for h in hasil:
+        baris.append(f"{h.nama}: {h.task_selesai} task selesai, {h.hari_valid} hari valid")
     return "\n".join(baris)
 
 
