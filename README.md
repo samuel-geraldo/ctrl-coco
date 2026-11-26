@@ -64,7 +64,7 @@ Klik kanan widget lalu pilih **Tambah task…**. Form berisi:
 
 - **Area**: pilih dari daftar, atau ketik nama area baru. Nama yang sama dengan area yang sudah ada tanpa beda huruf besar-kecil (misalnya `kuliah` untuk `Kuliah`) memakai area itu, bukan membuat area baru.
 - **Judul**: wajib diisi.
-- **Deadline**: opsional, format `YYYY-MM-DD HH:MM` (misalnya `2026-11-20 23:59`). Biarkan kosong untuk task tanpa deadline.
+- **Deadline**: opsional. **Tanpa deadline** dicentang sejak awal. Untuk memberi deadline, hilangkan centangnya lalu pilih tanggal dan jam (`dd/MM/yyyy HH:mm`, ada kalender), atau klik **Hari ini 23:59**, **Besok 23:59**, atau **Minggu depan** (7 hari lagi, pukul 23:59); tombol itu sekaligus menghilangkan centang.
 
 Klik **Simpan**. Jika ada isian yang salah, pesannya muncul di form dengan warna merah, dan isian tidak hilang, jadi bisa langsung diperbaiki. Setelah tersimpan, form tertutup dan widget langsung menampilkan task terdekat. Area baru dan task disimpan sekaligus: jika task gagal disimpan, area baru juga tidak dibuat.
 
