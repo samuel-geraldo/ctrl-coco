@@ -87,6 +87,13 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Task masuk rentang menurut tanggal `completed_at` (inklusif), sama dengan on-time rate.
 - Area tanpa task selesai di rentang bernilai `None`, bukan 0, dan tampil "belum ada task selesai". Bila database kosong, teks median disembunyikan.
 
+## Analitik: produktivitas per hari dalam seminggu (#82)
+
+- `produktivitas_per_hari(conn, awal, akhir)` di `analytics.py` mengembalikan selalu 7 baris, Senin sampai Minggu, berisi jumlah task selesai dan jumlah hari valid. Hari tanpa data bernilai 0.
+- Task dihitung menurut tanggal `completed_at` (inklusif). `strftime('%w')` di SQLite memberi 0 untuk Minggu, jadi angkanya digeser `(w + 6) % 7` supaya 0 berarti Senin.
+- Hari valid diambil dari `hari_valid`, jadi aturannya tetap satu sumber.
+- Di Ringkasan tampil sebagai teks tujuh baris, misalnya "Senin: 3 task selesai, 2 hari valid". Bila database kosong, teksnya disembunyikan.
+
 ## Ekspor CSV (#43)
 
 - `ekspor_csv(conn, folder)` di `export.py` (tanpa Qt) menulis dua file bernama tetap ke folder yang dipilih: `task.csv` dan `daily_log.csv`. File lama dengan nama itu ditimpa.

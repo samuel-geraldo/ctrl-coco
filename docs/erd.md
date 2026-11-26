@@ -75,7 +75,7 @@ Task yang sudah selesai (`status = 'done'`) digabung dengan nama areanya, plus p
 | selesai | `task.completed_at` | waktu selesai |
 | tepat_waktu | dihitung | 1 bila `selesai <= deadline` (selesai tepat pada deadline dihitung tepat waktu), 0 bila terlambat, kosong (NULL) bila task tanpa deadline |
 
-Task yang masih `todo` tidak ada di view ini. Kedua kolom waktu berformat `YYYY-MM-DD HH:MM`, jadi perbandingan teksnya sama dengan perbandingan waktunya. Saat ini `on_time_rate` dan `median_penyelesaian_per_area` yang memakainya; `completion_rate_per_area` tidak, karena penyebutnya memuat semua task, termasuk yang masih `todo`. View untuk `daily_log` belum ada.
+Task yang masih `todo` tidak ada di view ini. Kedua kolom waktu berformat `YYYY-MM-DD HH:MM`, jadi perbandingan teksnya sama dengan perbandingan waktunya. Saat ini `on_time_rate`, `median_penyelesaian_per_area`, dan `produktivitas_per_hari` yang memakainya; `completion_rate_per_area` tidak, karena penyebutnya memuat semua task, termasuk yang masih `todo`. View untuk `daily_log` belum ada.
 
 ## Relasi
 
