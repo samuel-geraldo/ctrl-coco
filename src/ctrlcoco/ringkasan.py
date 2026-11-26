@@ -12,9 +12,15 @@ from ctrlcoco.analytics import (
     longest_streak,
     median_penyelesaian_per_area,
     on_time_rate,
+    produktivitas_per_hari,
     rentang_ringkasan,
 )
-from ctrlcoco.grafik_area import GrafikCompletionRate, teks_median, teks_on_time
+from ctrlcoco.grafik_area import (
+    GrafikCompletionRate,
+    teks_median,
+    teks_on_time,
+    teks_per_hari,
+)
 from ctrlcoco.heatmap import HeatmapKalender
 
 FORMAT_TANGGAL = "%d/%m/%Y"
@@ -68,6 +74,10 @@ class JendelaRingkasan(QDialog):
         self.median_label.setText(teks_median(median_penyelesaian_per_area(conn, awal, akhir)))
         self.median_label.setVisible(ada)
 
+        # Task selesai dan hari valid per hari dalam seminggu (#82).
+        self.per_hari_label = QLabel(teks_per_hari(produktivitas_per_hari(conn, awal, akhir)))
+        self.per_hari_label.setVisible(ada)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.rentang_label)
         layout.addWidget(self.kosong_label)
@@ -76,3 +86,4 @@ class JendelaRingkasan(QDialog):
         layout.addWidget(self.grafik)
         layout.addWidget(self.on_time_label)
         layout.addWidget(self.median_label)
+        layout.addWidget(self.per_hari_label)

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from ctrlcoco import analytics, data
 from ctrlcoco import ringkasan as ringkasan_module
-from ctrlcoco.grafik_area import teks_median, teks_on_time
+from ctrlcoco.grafik_area import teks_median, teks_on_time, teks_per_hari
 from ctrlcoco.ringkasan import JendelaRingkasan
 
 HARI_INI = date(2026, 3, 10)
@@ -185,4 +185,35 @@ def test_median_label_teks_polos(app, conn):
 def test_database_kosong_menyembunyikan_median(app, conn):
     j = buat_jendela(conn)
     assert j.median_label.isHidden()
+    j.close()
+
+
+def test_per_hari_di_ringkasan_sama_dengan_fungsi_analitik(app, conn):
+    isi_task(conn)  # selesai Jumat 06/03 dan Senin 09/03
+    data.set_daily_log(conn, "2026-03-09", True, True)
+    j = buat_jendela(conn)
+    awal, akhir = analytics.rentang_ringkasan(HARI_INI)
+    hasil = analytics.produktivitas_per_hari(conn, awal, akhir)
+    assert (hasil[0].task_selesai, hasil[0].hari_valid) == (1, 1)
+    assert (hasil[4].task_selesai, hasil[4].hari_valid) == (1, 0)
+    assert j.per_hari_label.text() == teks_per_hari(hasil)
+    assert not j.per_hari_label.isHidden()
+    j.close()
+
+
+def test_teks_per_hari():
+    hasil = [
+        analytics.ProduktivitasHari("Senin", 3, 2),
+        analytics.ProduktivitasHari("Selasa", 0, 0),
+    ]
+    assert teks_per_hari(hasil) == (
+        "Produktivitas per hari:\n"
+        "Senin: 3 task selesai, 2 hari valid\n"
+        "Selasa: 0 task selesai, 0 hari valid"
+    )
+
+
+def test_database_kosong_menyembunyikan_per_hari(app, conn):
+    j = buat_jendela(conn)
+    assert j.per_hari_label.isHidden()
     j.close()

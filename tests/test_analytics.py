@@ -458,3 +458,69 @@ def test_median_rentang_menurut_tanggal_selesai_inklusif(conn):
 
 def test_median_tanpa_area(conn):
     assert analytics.median_penyelesaian_per_area(conn, AWAL, AKHIR) == []
+
+
+NAMA_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+
+
+def _per_hari(conn, awal=AWAL, akhir=AKHIR):
+    """{nama hari: (task selesai, hari valid)}, hanya hari yang tidak nol."""
+    return {
+        r.nama: (r.task_selesai, r.hari_valid)
+        for r in analytics.produktivitas_per_hari(conn, awal, akhir)
+        if r.task_selesai or r.hari_valid
+    }
+
+
+def test_per_hari_database_kosong_tujuh_baris_nol(conn):
+    hasil = analytics.produktivitas_per_hari(conn, AWAL, AKHIR)
+    assert [(r.nama, r.task_selesai, r.hari_valid) for r in hasil] == [
+        (nama, 0, 0) for nama in NAMA_HARI
+    ]
+
+
+def test_per_hari_angka_diketahui(conn):
+    area = data.add_area(conn, "Kuliah")
+    # 2026-03-02 dan 2026-03-09 hari Senin; 2026-03-04 hari Rabu.
+    for selesai in ("2026-03-02 09:00", "2026-03-09 23:59", "2026-03-04 00:00"):
+        _task(conn, area, selesai, True)
+    for tanggal in ("2026-03-02", "2026-03-06", "2026-03-13"):  # Senin, Jumat, Jumat
+        data.set_daily_log(conn, tanggal, True, True)
+    assert _per_hari(conn) == {"Senin": (2, 1), "Rabu": (1, 0), "Jumat": (0, 2)}
+
+
+def test_per_hari_minggu_tidak_tertukar_dengan_senin(conn):
+    area = data.add_area(conn, "Kuliah")
+    _task(conn, area, "2026-03-08 12:00", True)  # Minggu
+    data.set_daily_log(conn, "2026-03-08", True, True)
+    hasil = analytics.produktivitas_per_hari(conn, AWAL, AKHIR)
+    assert (hasil[0].nama, hasil[0].task_selesai, hasil[0].hari_valid) == ("Senin", 0, 0)
+    assert (hasil[6].nama, hasil[6].task_selesai, hasil[6].hari_valid) == ("Minggu", 1, 1)
+
+
+def test_per_hari_menurut_completed_at_bukan_created_at(conn):
+    area = data.add_area(conn, "Kuliah")
+    _durasi(conn, area, "2026-03-02 08:00", "2026-03-03 08:00")  # dibuat Senin, selesai Selasa
+    assert _per_hari(conn) == {"Selasa": (1, 0)}
+
+
+def test_per_hari_todo_dan_log_tidak_valid_diabaikan(conn):
+    area = data.add_area(conn, "Kuliah")
+    _task(conn, area, "2026-03-02 09:00")
+    data.set_daily_log(conn, "2026-03-02", True, False)
+    assert _per_hari(conn) == {}
+
+
+def test_per_hari_di_luar_rentang_diabaikan_batas_inklusif(conn):
+    area = data.add_area(conn, "Kuliah")
+    # AWAL 2026-03-01 hari Minggu, AKHIR 2026-03-31 hari Selasa.
+    for selesai in (
+        "2026-02-28 23:59",
+        "2026-03-01 00:00",
+        "2026-03-31 23:59",
+        "2026-04-01 00:00",
+    ):
+        _task(conn, area, selesai, True)
+    for tanggal in ("2026-02-28", "2026-03-01", "2026-03-31", "2026-04-01"):
+        data.set_daily_log(conn, tanggal, True, True)
+    assert _per_hari(conn) == {"Selasa": (1, 1), "Minggu": (1, 1)}
