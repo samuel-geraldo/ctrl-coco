@@ -182,6 +182,34 @@ def complete_task(conn: sqlite3.Connection, task_id: int, now: datetime | None =
                 raise ValueError(f"Task tidak ditemukan: {task_id}")
 
 
+def list_done_untuk_dibatalkan(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """Task 'done' beserta nama areanya (kolom id, title, area, completed_at).
+
+    Yang terakhir diselesaikan paling atas, karena salah klik biasanya baru saja terjadi.
+    """
+    return conn.execute(
+        "SELECT task.id, task.title, area.name AS area, task.completed_at"
+        " FROM task JOIN area ON area.id = task.area_id"
+        " WHERE task.status = ?"
+        " ORDER BY task.completed_at DESC, task.id DESC",
+        ("done",),
+    ).fetchall()
+
+
+def batalkan_selesai(conn: sqlite3.Connection, task_id: int) -> None:
+    """Kembalikan task 'done' ke 'todo' dan kosongkan completed_at. Task todo dibiarkan."""
+    with conn:
+        cur = conn.execute(
+            "UPDATE task SET status = 'todo', completed_at = NULL"
+            " WHERE id = ? AND status = 'done'",
+            (task_id,),
+        )
+        if cur.rowcount == 0:
+            exists = conn.execute("SELECT 1 FROM task WHERE id = ?", (task_id,)).fetchone()
+            if not exists:
+                raise ValueError(f"Task tidak ditemukan: {task_id}")
+
+
 # --- daily_log ---
 
 def set_daily_log(

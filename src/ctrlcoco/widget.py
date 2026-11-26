@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from ctrlcoco import export
 from ctrlcoco.data import DATE_FORMAT, get_daily_log, get_nearest_task
+from ctrlcoco.form_batalkan import FormBatalkanSelesai
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
@@ -259,13 +260,14 @@ class CocoWidget(QWidget):
             self._posisi_tekan = None
             self.buka_form_log()
 
-    # --- klik kanan: log hari ini, tambah task, selesaikan task, ringkasan, ekspor, keluar ---
+    # --- menu klik kanan ---
 
     def contextMenuEvent(self, event):
         menu = QMenu(self)
         menu.addAction("Log hari ini…", self.buka_form_log)
         menu.addAction("Tambah task…", self.buka_form_tambah_task)
         menu.addAction("Selesaikan task…", self.buka_form_selesai)
+        menu.addAction("Batalkan selesai…", self.buka_form_batalkan)
         menu.addAction("Ringkasan…", self.buka_ringkasan)
         menu.addAction("Ekspor CSV…", self.buka_ekspor)
         menu.addSeparator()
@@ -292,6 +294,9 @@ class CocoWidget(QWidget):
         form = self._buka_form(FormSelesaikanTask(self.conn, self))
         form.accepted.connect(self._rayakan_task)  # method terikat, lihat buka_form_log
         return form
+
+    def buka_form_batalkan(self) -> FormBatalkanSelesai:
+        return self._buka_form(FormBatalkanSelesai(self.conn, self))
 
     def buka_ringkasan(self) -> JendelaRingkasan:
         # Satu jendela saja: bila sudah terbuka, dibawa ke depan, tidak dibuat ganda.
