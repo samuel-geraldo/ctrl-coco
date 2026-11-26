@@ -276,9 +276,9 @@ Mengikuti milestone di GitHub.
 
 - [ ] Tahap 6: jendela Tinjauan mingguan
 - [ ] Analitik: waktu penyelesaian task per area dan produktivitas per hari dalam seminggu
-- [ ] SQL view untuk statistik task
+- [x] SQL view untuk statistik task
 - [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
-- [ ] Kelas dasar form untuk tiga form
+- [x] Kelas dasar form untuk tiga form
 - [ ] Laporan cakupan tes dan badge di README
 - [ ] Opsi jalan otomatis saat Windows menyala
 - [ ] CHANGELOG dan studi kasus
