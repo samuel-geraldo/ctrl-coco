@@ -3,12 +3,12 @@ from datetime import date, datetime
 from pathlib import Path
 
 import shiboken6
-from PySide6.QtCore import QEvent
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QApplication
 
 from ctrlcoco import analytics, data
 from ctrlcoco import ringkasan as ringkasan_module
-from ctrlcoco.grafik_area import teks_on_time
+from ctrlcoco.grafik_area import teks_median, teks_on_time
 from ctrlcoco.ringkasan import JendelaRingkasan
 
 HARI_INI = date(2026, 3, 10)
@@ -144,4 +144,45 @@ def test_hanya_task_belum_selesai_nol_persen_dan_on_time_belum_ada(app, conn):
     assert len(j.grafik.baris) == 1
     assert j.grafik.baris[0].teks.text() == "0% (0/1)"
     assert j.on_time_label.text() == teks_on_time(None)
+    j.close()
+
+
+def test_median_di_ringkasan_sama_dengan_fungsi_analitik(app, conn):
+    isi_task(conn)  # Kuliah: 26 jam dan 98 jam, median 62. Olahraga: belum ada yang selesai
+    j = buat_jendela(conn)
+    awal, akhir = analytics.rentang_ringkasan(HARI_INI)
+    hasil = analytics.median_penyelesaian_per_area(conn, awal, akhir)
+    assert [r.jam for r in hasil] == [62.0, None]
+    assert j.median_label.text() == teks_median(hasil)
+    assert not j.median_label.isHidden()
+    j.close()
+
+
+def test_teks_median():
+    hasil = [
+        analytics.MedianArea(1, "Kuliah", 62.26),
+        analytics.MedianArea(2, "Olahraga", None),
+    ]
+    assert teks_median(hasil) == (
+        "Median waktu selesai:\n"
+        "Kuliah: 62,3 jam\n"
+        "Olahraga: belum ada task selesai"
+    )
+
+
+def test_teks_median_tanpa_area():
+    assert teks_median([]) == "Median waktu selesai: belum ada area"
+
+
+def test_median_label_teks_polos(app, conn):
+    # Nama area diketik pengguna: tag HTML harus tampil apa adanya.
+    data.add_area(conn, "<b>Kuliah</b>")
+    j = buat_jendela(conn)
+    assert j.median_label.textFormat() == Qt.PlainText
+    j.close()
+
+
+def test_database_kosong_menyembunyikan_median(app, conn):
+    j = buat_jendela(conn)
+    assert j.median_label.isHidden()
     j.close()
