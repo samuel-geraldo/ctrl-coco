@@ -220,24 +220,33 @@ src/ctrlcoco/
   data.py      tambah dan baca area, task, daily_log (validasi tanggal ketat)
   streak.py    hitung streak dari daily_log
   mood.py      get_mood(conn, now): waspada, senang, atau tidur
+  pesan.py     kalimat gelembung bicara Coco (tanpa Qt)
+  klik.py      membedakan klik dari seret (tanpa Qt)
+  perayaan.py  kapan Coco merayakan (tanpa Qt)
+  posisi.py    posisi form di samping Coco (tanpa Qt)
   aset.py      lokasi folder assets (dari kode atau di dalam .exe)
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
+  form_dasar.py kelas dasar bersama untuk ketiga form
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
+  deadline.py  deadline untuk tombol cepat (tanpa Qt)
   form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
+  analytics.py metrik untuk jendela Ringkasan (tanpa Qt)
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
   grafik_area.py grafik batang completion rate per area dan teks on-time rate
   export.py    ekspor task dan daily_log ke CSV (tanpa Qt)
+  __main__.py  titik masuk python -m ctrlcoco
 packaging/
   ctrlcoco.spec konfigurasi build PyInstaller (satu .exe)
   entry.py      titik masuk .exe
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
+  tangkapan_layar.py membuat gambar README
 tests/         pytest, database di memori, widget diuji tanpa layar
 docs/
-  erd.md             skema 3 tabel (Mermaid)
+  erd.md             skema 3 tabel (Mermaid) dan view
   user-stories.md    cerita pengguna per tahap
   keputusan.md       keputusan desain dan alasannya
   sprite.md          panduan menggambar sprite Coco
