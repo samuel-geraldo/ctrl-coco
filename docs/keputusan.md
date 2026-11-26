@@ -79,6 +79,14 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Belum ada scroll: jendela memanjang mengikuti jumlah area. Cukup untuk v0.1.0; ditinjau lagi bila area banyak.
 - Bila database kosong, grafik dan on-time disembunyikan; yang tampil hanya "Belum ada data".
 
+## Analitik: median waktu penyelesaian per area (#81)
+
+- `median_penyelesaian_per_area(conn, awal, akhir)` di `analytics.py` mengembalikan median waktu dari `created_at` sampai `completed_at` tiap area, hanya task `done`.
+- **Satuan: jam** (pecahan). Di Ringkasan ditampilkan satu angka di belakang koma, misalnya "62,0 jam".
+- **Median dihitung di Python** (`statistics.median`) dari hasil SQL, karena SQLite tidak punya fungsi median bawaan dan versi fungsi jendela lebih panjang untuk dibaca. Untuk jumlah genap, hasilnya rata-rata dua nilai tengah.
+- Task masuk rentang menurut tanggal `completed_at` (inklusif), sama dengan on-time rate.
+- Area tanpa task selesai di rentang bernilai `None`, bukan 0, dan tampil "belum ada task selesai". Bila database kosong, teks median disembunyikan.
+
 ## Ekspor CSV (#43)
 
 - `ekspor_csv(conn, folder)` di `export.py` (tanpa Qt) menulis dua file bernama tetap ke folder yang dipilih: `task.csv` dan `daily_log.csv`. File lama dengan nama itu ditimpa.

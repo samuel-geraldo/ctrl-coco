@@ -26,7 +26,7 @@ Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desa
 - Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
 - Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
 - Menu klik kanan: catat log hari ini, tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task, buka Ringkasan, dan ekspor data ke CSV
-- Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, dan on-time rate
+- Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, on-time rate, dan median waktu penyelesaian per area
 - Form muncul di samping Coco, jadi Coco tetap terlihat
 - Data dibaca ulang otomatis setiap 60 detik dan tersimpan lokal di SQLite
 
