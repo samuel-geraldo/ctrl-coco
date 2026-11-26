@@ -6,8 +6,10 @@ Semua fungsi menerima rentang tanggal `awal` dan `akhir` (keduanya inklusif, ber
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from statistics import median
 
+from ctrlcoco.data import TIME_FORMAT
 from ctrlcoco.streak import KONDISI_HARI_VALID
 
 
@@ -82,6 +84,53 @@ def on_time_rate(conn: sqlite3.Connection, awal: date, akhir: date) -> float | N
     """
     baris = conn.execute(_SQL_ON_TIME, (awal.isoformat(), akhir.isoformat())).fetchone()
     return baris["tepat_waktu"] / baris["total"] if baris["total"] else None
+
+
+@dataclass(frozen=True)
+class MedianArea:
+    area_id: int
+    nama: str
+    jam: float | None  # median jam dari dibuat sampai selesai; None bila belum ada
+
+
+_SQL_WAKTU_SELESAI = """
+SELECT area.id AS area_id,
+       area.name AS nama,
+       v.dibuat AS dibuat,
+       v.selesai AS selesai
+FROM area
+LEFT JOIN v_task_selesai AS v
+       ON v.area_id = area.id
+      AND date(v.selesai) BETWEEN ? AND ?
+ORDER BY area.name COLLATE NOCASE
+"""
+
+
+def _selisih_jam(dibuat: str, selesai: str) -> float:
+    selisih = datetime.strptime(selesai, TIME_FORMAT) - datetime.strptime(dibuat, TIME_FORMAT)
+    return selisih.total_seconds() / 3600
+
+
+def median_penyelesaian_per_area(
+    conn: sqlite3.Connection, awal: date, akhir: date
+) -> list[MedianArea]:
+    """Median waktu dari dibuat sampai selesai tiap area, dalam jam.
+
+    Hanya task `done`. Task masuk rentang menurut tanggal `completed_at` (awal dan akhir
+    inklusif), sama dengan `on_time_rate`. Median dihitung di Python karena SQLite tidak
+    punya fungsinya; untuk jumlah genap, rata-rata dua nilai tengah.
+    Semua area dikembalikan, urut nama tanpa beda huruf besar-kecil; area tanpa task
+    selesai di rentang punya `jam is None`.
+    """
+    area: dict[int, tuple[str, list[float]]] = {}
+    for b in conn.execute(_SQL_WAKTU_SELESAI, (awal.isoformat(), akhir.isoformat())):
+        _, durasi = area.setdefault(b["area_id"], (b["nama"], []))
+        if b["selesai"] is not None:  # NULL: baris LEFT JOIN untuk area tanpa task selesai
+            durasi.append(_selisih_jam(b["dibuat"], b["selesai"]))
+    return [
+        MedianArea(area_id, nama, median(durasi) if durasi else None)
+        for area_id, (nama, durasi) in area.items()
+    ]
 
 
 # Hanya konstanta modul yang digabung ke teks SQL; nilai masukan lewat parameter "?".

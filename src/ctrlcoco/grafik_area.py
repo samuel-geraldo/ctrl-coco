@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
-from ctrlcoco.analytics import RateArea
+from ctrlcoco.analytics import MedianArea, RateArea
 
 LEBAR_BATANG_PX = 200
 TINGGI_BATANG_PX = 14
@@ -11,6 +11,8 @@ WARNA_KOSONG = "#9e9e9e"  # teks abu untuk area tanpa task di rentang
 
 TEKS_KOSONG = "belum ada task"
 TEKS_ON_TIME_KOSONG = "On-time rate: belum ada task selesai dengan deadline"
+JUDUL_MEDIAN = "Median waktu selesai"
+TEKS_MEDIAN_KOSONG = "belum ada task selesai"
 
 
 def _persen(rate: float) -> int:
@@ -33,6 +35,20 @@ def teks_on_time(rate: float | None) -> str:
     if rate is None:
         return TEKS_ON_TIME_KOSONG
     return f"On-time rate: {_persen(rate)}%"
+
+
+def teks_median(hasil: list[MedianArea]) -> str:
+    """Satu baris per area: "Kuliah: 62,3 jam", atau "belum ada task selesai" bila None."""
+    if not hasil:
+        return f"{JUDUL_MEDIAN}: belum ada area"
+    baris = [f"{JUDUL_MEDIAN}:"]
+    for area in hasil:
+        if area.jam is None:
+            nilai = TEKS_MEDIAN_KOSONG
+        else:
+            nilai = f"{area.jam:.1f}".replace(".", ",") + " jam"
+        baris.append(f"{area.nama}: {nilai}")
+    return "\n".join(baris)
 
 
 @dataclass

@@ -397,3 +397,64 @@ def test_hari_valid_konsisten_dengan_streak_terpanjang(conn):
     hari = analytics.hari_valid(conn, AWAL, AKHIR)
     assert len(hari) == 4
     assert analytics.longest_streak(conn, AWAL, AKHIR) == 4
+
+
+def _durasi(conn, area_id, dibuat, selesai):
+    """Task done dengan created_at dan completed_at tertentu."""
+    task_id = _task(conn, area_id, dibuat)
+    data.complete_task(conn, task_id, now=datetime.strptime(selesai, "%Y-%m-%d %H:%M"))
+
+
+def _median(conn, awal=AWAL, akhir=AKHIR):
+    return {r.nama: r.jam for r in analytics.median_penyelesaian_per_area(conn, awal, akhir)}
+
+
+def test_median_jumlah_ganjil(conn):
+    area = data.add_area(conn, "Kuliah")
+    _durasi(conn, area, "2026-03-05 08:00", "2026-03-05 09:00")  # 1 jam
+    _durasi(conn, area, "2026-03-05 08:00", "2026-03-05 10:00")  # 2 jam
+    _durasi(conn, area, "2026-03-05 08:00", "2026-03-09 12:00")  # 100 jam
+    assert _median(conn) == {"Kuliah": 2.0}
+
+
+def test_median_jumlah_genap(conn):
+    area = data.add_area(conn, "Kuliah")
+    for selesai in ("09:00", "10:00", "11:30", "18:00"):  # 1, 2, 3.5, 10 jam
+        _durasi(conn, area, "2026-03-05 08:00", f"2026-03-05 {selesai}")
+    assert _median(conn) == {"Kuliah": 2.75}
+
+
+def test_median_dipisah_per_area_dan_urut_nama(conn):
+    olahraga = data.add_area(conn, "Olahraga")
+    kuliah = data.add_area(conn, "kuliah")
+    _durasi(conn, olahraga, "2026-03-05 08:00", "2026-03-05 08:30")
+    _durasi(conn, kuliah, "2026-03-05 08:00", "2026-03-06 08:00")
+    hasil = analytics.median_penyelesaian_per_area(conn, AWAL, AKHIR)
+    assert [(r.nama, r.jam) for r in hasil] == [("kuliah", 24.0), ("Olahraga", 0.5)]
+
+
+def test_median_area_tanpa_task_selesai_none(conn):
+    data.add_area(conn, "Kosong")
+    area = data.add_area(conn, "Todo")
+    _task(conn, area, "2026-03-05 08:00")
+    assert _median(conn) == {"Kosong": None, "Todo": None}
+
+
+def test_median_task_todo_diabaikan(conn):
+    area = data.add_area(conn, "Kuliah")
+    _durasi(conn, area, "2026-03-05 08:00", "2026-03-05 12:00")
+    _task(conn, area, "2026-03-05 08:00")
+    assert _median(conn) == {"Kuliah": 4.0}
+
+
+def test_median_rentang_menurut_tanggal_selesai_inklusif(conn):
+    area = data.add_area(conn, "Kuliah")
+    _durasi(conn, area, "2026-02-27 23:59", "2026-02-28 23:59")  # sebelum rentang
+    _durasi(conn, area, "2026-02-28 00:00", "2026-03-01 00:00")  # hari awal: 24 jam
+    _durasi(conn, area, "2026-03-31 21:59", "2026-03-31 23:59")  # hari akhir: 2 jam
+    _durasi(conn, area, "2026-03-31 00:00", "2026-04-01 00:00")  # sesudah rentang
+    assert _median(conn) == {"Kuliah": 13.0}
+
+
+def test_median_tanpa_area(conn):
+    assert analytics.median_penyelesaian_per_area(conn, AWAL, AKHIR) == []
