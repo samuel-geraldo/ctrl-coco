@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
 
 from ctrlcoco import data, db
 from ctrlcoco import widget as widget_module
+from ctrlcoco.form_batalkan import FormBatalkanSelesai
 from ctrlcoco.form_log import FormLogHarian
 from ctrlcoco.form_selesai import FormSelesaikanTask
 from ctrlcoco.form_task import FormTambahTask
@@ -506,8 +507,8 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
     w = CocoWidget(conn)
     aksi = buka_menu(w, monkeypatch)
     assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
-        "Log hari ini…", "Tambah task…", "Selesaikan task…", "Ringkasan…", "Ekspor CSV…",
-        "---", "Keluar",
+        "Log hari ini…", "Tambah task…", "Selesaikan task…", "Batalkan selesai…",
+        "Ringkasan…", "Ekspor CSV…", "---", "Keluar",
     ]
 
 
@@ -642,6 +643,7 @@ def kotak(rect):
         ("buka_form_log", FormLogHarian),
         ("buka_form_tambah_task", FormTambahTask),
         ("buka_form_selesai", FormSelesaikanTask),
+        ("buka_form_batalkan", FormBatalkanSelesai),
     ],
 )
 def test_ketiga_form_memakai_posisi_form(app, conn, monkeypatch, buka, kelas):
@@ -986,3 +988,26 @@ def test_ekspor_csv_gagal_menulis_menampilkan_pesan_error_tanpa_crash(app, conn,
     teks = dialog.error[0][2]  # QMessageBox.critical(parent, judul, teks)
     assert "tidak_ada" in teks  # lokasi
     assert "Penyebab" in teks
+
+
+# --- Batalkan selesai (#55) ---
+
+def test_batalkan_selesai_task_kembali_jadi_task_terdekat(app, conn, monkeypatch):
+    area_id = data.add_area(conn, "Kuliah")
+    mepet = (datetime.now() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+    kuis = data.add_task(conn, area_id, "Kuis", deadline=mepet)
+    data.add_task(conn, area_id, "Laporan", deadline="2099-01-01 10:00")
+    data.complete_task(conn, kuis)
+    w = CocoWidget(conn)
+    assert '"Kuis"' not in w.bubble_label.text()
+    assert w.mood == "tidur"
+
+    picu_aksi(w, monkeypatch, "Batalkan selesai…")
+    form = satu_form(w, FormBatalkanSelesai)
+    form.daftar.setCurrentRow(0)
+    form.tombol_kembalikan.click()
+
+    # Tanpa menunggu timer refresh: Kuis kembali jadi task terdekat.
+    assert '"Kuis"' in w.bubble_label.text()
+    assert w.mood == "waspada"
+    assert form_sudah_dihapus(w, FormBatalkanSelesai)

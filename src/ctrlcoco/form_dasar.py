@@ -5,7 +5,7 @@ ERROR_STYLE = "QLabel { color: #c62828; }"
 
 
 class FormDasar(QDialog):
-    """Kerangka bersama ketiga form: pesan error merah dan tombol utama + Batal.
+    """Kerangka bersama form: pesan error merah dan tombol utama + Batal.
 
     Isian, aksi tombol utama, dan susunan layout tetap milik tiap form.
     """

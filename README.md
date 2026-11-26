@@ -25,7 +25,7 @@ Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desa
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
 - Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
-- Menu klik kanan: catat log hari ini, tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task, buka Ringkasan, dan ekspor data ke CSV
+- Menu klik kanan: catat log hari ini, tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan, dan ekspor data ke CSV
 - Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, on-time rate, median waktu penyelesaian per area, dan produktivitas per hari dalam seminggu
 - Form muncul di samping Coco, jadi Coco tetap terlihat
 - Data dibaca ulang otomatis setiap 60 detik dan tersimpan lokal di SQLite
@@ -48,7 +48,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 ### Menu klik kanan
 
-Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Batalkan selesai…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -70,7 +70,11 @@ Klik **Simpan**. Jika ada isian yang salah, pesannya muncul di form dengan warna
 
 ### Menyelesaikan task
 
-Klik kanan widget lalu pilih **Selesaikan task…**. Form menampilkan semua task yang belum selesai, dengan deadline paling awal di atas dan task tanpa deadline di bawah. Pilih satu task lalu klik **Tandai selesai**. Task itu langsung hilang dari task terdekat di widget. Status selesai belum bisa dibatalkan dari widget.
+Klik kanan widget lalu pilih **Selesaikan task…**. Form menampilkan semua task yang belum selesai, dengan deadline paling awal di atas dan task tanpa deadline di bawah. Pilih satu task lalu klik **Tandai selesai**. Task itu langsung hilang dari task terdekat di widget.
+
+### Membatalkan status selesai
+
+Salah menandai task? Klik kanan widget lalu pilih **Batalkan selesai…**. Form menampilkan task yang sudah selesai, yang terakhir diselesaikan di atas. Pilih satu lalu klik **Kembalikan**. Task itu kembali belum selesai, waktu selesainya dihapus, dan widget langsung diperbarui. Riwayat perubahan status tidak disimpan.
 
 ### Ekspor ke CSV
 
@@ -151,7 +155,9 @@ Untuk mengisi ulang, hapus `demo.db` lalu jalankan skripnya lagi.
 
 **Bisa dipakai di macOS atau Linux?** Belum. CtrlCoco dikembangkan dan diuji di Windows, dan build `.exe` hanya untuk Windows.
 
-**Bisa membatalkan task yang sudah selesai, atau mengimpor dari CSV?** Belum. Pembatalan status selesai direncanakan untuk v0.2.0; impor CSV belum dijadwalkan.
+**Bisa membatalkan task yang sudah selesai?** Bisa, lihat [Membatalkan status selesai](#membatalkan-status-selesai).
+
+**Bisa mengimpor dari CSV?** Belum; impor CSV belum dijadwalkan.
 
 ## Cara build dan tes
 
@@ -227,11 +233,12 @@ src/ctrlcoco/
   aset.py      lokasi folder assets (dari kode atau di dalam .exe)
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
-  form_dasar.py kelas dasar bersama untuk ketiga form
+  form_dasar.py kelas dasar bersama untuk form
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
   deadline.py  deadline untuk tombol cepat (tanpa Qt)
   form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
+  form_batalkan.py form untuk mengembalikan task selesai ke belum selesai
   analytics.py metrik untuk jendela Ringkasan (tanpa Qt)
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)

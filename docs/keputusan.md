@@ -94,6 +94,13 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Hari valid diambil dari `hari_valid`, jadi aturannya tetap satu sumber.
 - Di Ringkasan tampil sebagai teks tujuh baris, misalnya "Senin: 3 task selesai, 2 hari valid". Bila database kosong, teksnya disembunyikan.
 
+## Batalkan status selesai (#55)
+
+- `batalkan_selesai(conn, task_id)` di `data.py` mengubah task `done` menjadi `todo` dan mengosongkan `completed_at` dalam satu transaksi. Task `todo` dibiarkan; id yang tidak ada menghasilkan `ValueError`.
+- Jalan masuknya menu **Batalkan selesai…**, dengan form terpisah (`form_batalkan.py`). Daftar diurutkan dari yang terakhir diselesaikan, karena salah klik biasanya baru terjadi.
+- Tombol utamanya "Kembalikan", supaya tidak tertukar dengan tombol "Batal".
+- Tidak ada perayaan dan tidak ada riwayat perubahan status.
+
 ## Ekspor CSV (#43)
 
 - `ekspor_csv(conn, folder)` di `export.py` (tanpa Qt) menulis dua file bernama tetap ke folder yang dipilih: `task.csv` dan `daily_log.csv`. File lama dengan nama itu ditimpa.

@@ -261,6 +261,7 @@ def test_pelanggaran_check_tidak_disamarkan_jadi_pesan_area(conn):
 PENULIS = {
     "add_area": lambda c: data.add_area(c, "Baru"),
     "add_task": lambda c: data.add_task(c, 1, "Tugas baru", now=NOW),
+    "batalkan_selesai": lambda c: data.batalkan_selesai(c, 1),
     "complete_task": lambda c: data.complete_task(c, 1, now=NOW),
     "set_daily_log": lambda c: data.set_daily_log(c, "2026-03-10", True, True),
     "simpan_task_baru": lambda c: data.simpan_task_baru(c, "Area baru", "Tugas baru", "", now=NOW),
@@ -531,3 +532,48 @@ def test_list_todo_untuk_selesai_tanpa_task_done(conn):
 
 def test_list_todo_untuk_selesai_kosong(conn):
     assert data.list_todo_untuk_selesai(conn) == []
+
+
+# --- batalkan selesai (#55) ---
+
+def _status_task(conn, task_id):
+    t = conn.execute("SELECT status, completed_at FROM task WHERE id = ?", (task_id,)).fetchone()
+    return tuple(t)
+
+
+def test_batalkan_selesai_kembali_todo_dan_completed_at_kosong(conn):
+    area = data.add_area(conn, "Kuliah")
+    satu = data.add_task(conn, area, "Satu", now=NOW)
+    dua = data.add_task(conn, area, "Dua", now=NOW)
+    data.complete_task(conn, satu, now=NOW)
+    data.complete_task(conn, dua, now=NOW)
+    data.batalkan_selesai(conn, satu)
+    assert _status_task(conn, satu) == ("todo", None)
+    assert _status_task(conn, dua)[0] == "done"  # task lain tidak ikut berubah
+    assert not conn.in_transaction
+
+
+def test_batalkan_selesai_task_todo_dibiarkan(conn):
+    area = data.add_area(conn, "Kuliah")
+    task_id = data.add_task(conn, area, "Satu", now=NOW)
+    data.batalkan_selesai(conn, task_id)
+    assert _status_task(conn, task_id) == ("todo", None)
+
+
+def test_batalkan_selesai_id_tidak_ada(conn):
+    with pytest.raises(ValueError, match="Task tidak ditemukan: 99"):
+        data.batalkan_selesai(conn, 99)
+
+
+def test_list_done_hanya_task_done_terbaru_di_atas(conn):
+    area = data.add_area(conn, "Kuliah")
+    lama = data.add_task(conn, area, "Lama", now=NOW)
+    baru = data.add_task(conn, area, "Baru", now=NOW)
+    data.add_task(conn, area, "Belum", now=NOW)
+    data.complete_task(conn, lama, now=datetime(2026, 3, 10, 10, 0))
+    data.complete_task(conn, baru, now=datetime(2026, 3, 11, 10, 0))
+    hasil = [tuple(t) for t in data.list_done_untuk_dibatalkan(conn)]
+    assert hasil == [
+        (baru, "Baru", "Kuliah", "2026-03-11 10:00"),
+        (lama, "Lama", "Kuliah", "2026-03-10 10:00"),
+    ]
