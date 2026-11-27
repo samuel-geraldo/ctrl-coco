@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml"><img src="https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml/badge.svg?branch=main" alt="tests"></a>
+  <a href="https://github.com/samuel-geraldo/ctrl-coco/actions/workflows/tests.yml"><img src="https://raw.githubusercontent.com/samuel-geraldo/ctrl-coco/badges/cakupan.svg" alt="cakupan tes"></a>
   <a href="https://github.com/samuel-geraldo/ctrl-coco/blob/main/LICENSE"><img src="https://img.shields.io/github/license/samuel-geraldo/ctrl-coco" alt="Lisensi MIT"></a>
   <img src="https://img.shields.io/badge/python-3.14-blue" alt="Python 3.14">
   <img src="https://img.shields.io/badge/GUI-PySide6-41cd52" alt="PySide6">
@@ -195,6 +196,8 @@ python -m pytest --cov=ctrlcoco --cov-report=term-missing
 
 Di akhir keluaran tampil tabel per berkas: `Cover` adalah persentase baris yang dijalankan tes, `Missing` nomor baris yang belum pernah dijalankan, dan `TOTAL` angka keseluruhan. CI menjalankan perintah yang sama, jadi tabelnya juga ada di log job `tests`. Tidak ada ambang minimum: cakupan rendah tidak menggagalkan CI.
 
+Badge cakupan di atas dibuat oleh CI sendiri, tanpa layanan luar: sesudah tes lulus pada push ke `main`, job `badge` menulis angka `TOTAL` ke `cakupan.svg` di branch `badges`.
+
 ### Membuat gambar README
 
 Gambar widget dan jendela Ringkasan di README dibuat oleh skrip, bukan dipotret manual, jadi bisa dibuat ulang kapan saja dan tidak memuat data pribadi. Dari akar repo:
@@ -277,6 +280,7 @@ packaging/
 scripts/
   seed_demo.py data contoh 60 hari ke database terpisah
   tangkapan_layar.py membuat gambar README
+  badge_cakupan.py membuat badge cakupan tes (dipakai CI)
 tests/         pytest, database di memori, widget diuji tanpa layar
 docs/
   erd.md             skema 3 tabel (Mermaid) dan view
@@ -321,7 +325,7 @@ Mengikuti milestone di GitHub.
 - [x] SQL view untuk statistik task
 - [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
 - [x] Kelas dasar form untuk tiga form
-- [ ] Laporan cakupan tes dan badge di README
+- [x] Laporan cakupan tes dan badge di README
 - [ ] Opsi jalan otomatis saat Windows menyala
 - [ ] CHANGELOG dan studi kasus
 - [ ] Rilis v0.2.0

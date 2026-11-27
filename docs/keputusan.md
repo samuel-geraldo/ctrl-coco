@@ -151,7 +151,15 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **`pytest-cov` dikunci di `requirements.txt`**; `coverage`, dependensinya, tidak dikunci tersendiri.
 - **CI menjalankan `pytest --cov=ctrlcoco --cov-report=term-missing`**, jadi persentase per berkas dan baris yang belum dites terlihat di log job. Tanpa Codecov atau layanan luar lain.
 - **Tanpa ambang minimum:** cakupan tidak menggagalkan CI. Ambang bisa menyusul setelah angka awal diketahui.
-- **Badge cakupan belum dikerjakan**, jadi #68 tetap terbuka. Badge buatan workflow sendiri butuh branch tambahan dan izin tulis untuk `GITHUB_TOKEN`; untuk sekarang itu tidak diambil.
+- **Badge cakupan** waktu itu belum dikerjakan; lanjutannya ada di "Badge cakupan (#126)".
+
+## Badge cakupan (#126)
+
+- **Dibuat sendiri, tanpa layanan luar dan tanpa akun.** `scripts/badge_cakupan.py` menulis SVG dari angka `coverage report --format=total`, angka yang sama dengan `TOTAL` di log CI.
+- **Disimpan di branch `badges`, bukan di `main`**, supaya tidak ada commit buatan mesin di riwayat `main`. Branch itu berisi satu berkas dan satu commit yang ditimpa (`push --force`).
+- **Commit di branch `badges` memakai author `github-actions[bot]`**, karena dibuat mesin.
+- **Izin tulis hanya untuk job `badge`**, yang berjalan sesudah tes lulus pada push ke `main`. Pull request tetap hanya membaca.
+- **Alternatif yang tidak diambil:** menyimpan SVG di `main` dan memperbaruinya dengan tangan, karena angkanya gampang basi.
 
 ## Tinjauan mingguan (#80)
 
