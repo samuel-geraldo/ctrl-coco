@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 from statistics import median
 
 from ctrlcoco.data import TIME_FORMAT
-from ctrlcoco.streak import KONDISI_HARI_VALID
+from ctrlcoco.streak import KONDISI_HARI_VALID, get_streak
 
 
 @dataclass(frozen=True)
@@ -230,3 +230,60 @@ def hari_valid(conn: sqlite3.Connection, awal: date, akhir: date) -> list[date]:
     """
     baris = conn.execute(_SQL_HARI_VALID, (awal.isoformat(), akhir.isoformat()))
     return [date.fromisoformat(b["log_date"]) for b in baris]
+
+
+# Rentang tetap jendela Tinjauan mingguan (#80): 7 hari terakhir, berakhir hari ini.
+RENTANG_TINJAUAN_HARI = 7
+
+
+def rentang_tinjauan(today: date) -> tuple[date, date]:
+    """Rentang Tinjauan mingguan: `RENTANG_TINJAUAN_HARI` hari berakhir di `today`, inklusif."""
+    return today - timedelta(days=RENTANG_TINJAUAN_HARI - 1), today
+
+
+@dataclass(frozen=True)
+class Tinjauan:
+    awal: date
+    akhir: date
+    task_selesai: int
+    task_terlambat: int
+    jumlah_hari_valid: int
+    streak: int  # streak yang sedang berjalan; boleh lebih panjang daripada rentang
+
+
+_SQL_JUMLAH_SELESAI = """
+SELECT COUNT(*) FROM v_task_selesai
+WHERE date(selesai) BETWEEN ? AND ?
+"""
+
+_SQL_JUMLAH_TERLAMBAT = """
+SELECT COUNT(*) FROM task
+WHERE date(deadline) BETWEEN ? AND ?
+  AND ((status = 'done' AND completed_at > deadline)
+       OR (status = 'todo' AND deadline < ?))
+"""
+
+
+def tinjauan_mingguan(conn: sqlite3.Connection, now: datetime) -> Tinjauan:
+    """Angka 7 hari terakhir sampai tanggal `now`.
+
+    Task selesai dihitung menurut tanggal `completed_at`. Task terlambat adalah task yang
+    deadline-nya jatuh dalam rentang dan tidak dipenuhi: selesai sesudah deadline, atau
+    masih `todo` padahal deadline sudah lewat dari `now`. Selesai tepat pada deadline
+    dihitung tepat waktu; task tanpa deadline tidak pernah terlambat (`date(NULL)` tidak
+    masuk rentang). Streak adalah `get_streak`, sama dengan gelembung Coco.
+    """
+    awal, akhir = rentang_tinjauan(now.date())
+    rentang = (awal.isoformat(), akhir.isoformat())
+    selesai = conn.execute(_SQL_JUMLAH_SELESAI, rentang).fetchone()[0]
+    terlambat = conn.execute(
+        _SQL_JUMLAH_TERLAMBAT, (*rentang, now.strftime(TIME_FORMAT))
+    ).fetchone()[0]
+    return Tinjauan(
+        awal=awal,
+        akhir=akhir,
+        task_selesai=selesai,
+        task_terlambat=terlambat,
+        jumlah_hari_valid=len(hari_valid(conn, awal, akhir)),
+        streak=get_streak(conn, akhir),
+    )
