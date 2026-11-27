@@ -2,7 +2,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 import pytest
-from PySide6.QtCore import QDateTime, QEvent, QPoint, QPointF, Qt
+from PySide6.QtCore import QDate, QDateTime, QEvent, QPoint, QPointF, Qt
 from PySide6.QtGui import QColor, QContextMenuEvent, QMouseEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
@@ -782,6 +782,41 @@ def test_widget_baru_dibuka_tidak_merayakan(app, conn, sprite_dir):
     data.set_daily_log(conn, date.today().isoformat(), True, True)
     w = CocoWidget(conn, sprite_dir=sprite_dir)
     assert not w.merayakan
+
+
+def isi_log_lampau(w, hari_lalu):
+    form = w.buka_form_log()
+    tanggal = date.today() - timedelta(days=hari_lalu)
+    form.tanggal_edit.setDate(QDate(tanggal.year, tanggal.month, tanggal.day))
+    form.claude_code_check.setChecked(True)
+    form.github_check.setChecked(True)
+    form.tombol_simpan.click()
+
+
+def test_mengisi_hari_terlewat_menyambung_streak(app, conn, sprite_dir):
+    for n in (0, 2, 3):  # kemarin terlewat
+        data.set_daily_log(conn, (date.today() - timedelta(days=n)).isoformat(), True, True)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+    assert "streak 1 hari" in w.bubble_label.text().lower()
+
+    isi_log_lampau(w, 1)
+
+    # Tanpa menunggu timer refresh.
+    assert "streak 4 hari" in w.bubble_label.text().lower()
+
+
+@pytest.mark.parametrize("hari_ini_valid", [False, True], ids=["belum_diisi", "sudah_valid"])
+def test_mengisi_tanggal_lampau_tidak_merayakan(app, conn, sprite_dir, hari_ini_valid):
+    for n in (2, 3):  # kemarin terlewat; mengisinya melewati tonggak 3
+        data.set_daily_log(conn, (date.today() - timedelta(days=n)).isoformat(), True, True)
+    if hari_ini_valid:
+        data.set_daily_log(conn, date.today().isoformat(), True, True)
+    w = CocoWidget(conn, sprite_dir=sprite_dir)
+
+    isi_log_lampau(w, 1)
+
+    assert not w.merayakan
+    assert not w.perayaan_timer.isActive()
 
 
 def test_selesaikan_task_memicu_perayaan_task(app, conn, sprite_dir):

@@ -1,10 +1,10 @@
-"""Tes form log hari ini tanpa layar: centang dan klik lewat kode."""
+"""Tes form log harian tanpa layar: pilih tanggal, centang, dan klik lewat kode."""
 import sqlite3
 from datetime import datetime
 
 import pytest
 import shiboken6
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import QDialog
 
 from ctrlcoco import data
@@ -169,3 +169,168 @@ def test_batal_tidak_mengubah_database(conn, form_dibuat):
     assert form.result() == QDialog.Rejected
     assert not form.isVisible()
     assert log(conn) == (0, 0, "lama")
+
+
+# --- pilihan tanggal: hari ini sampai 30 hari ke belakang (#56) ---
+
+KEMARIN = "2026-03-09"
+BATAS_AWAL = "2026-02-08"  # hari ini - 30
+
+
+def pilih(form, tanggal):
+    form.tanggal_edit.setDate(QDate.fromString(tanggal, "yyyy-MM-dd"))
+
+
+def terpilih(form):
+    return form.tanggal_edit.date().toString("yyyy-MM-dd")
+
+
+def isian(form):
+    return (
+        form.claude_code_check.isChecked(),
+        form.github_check.isChecked(),
+        form.catatan_edit.text(),
+    )
+
+
+def semua_log(conn):
+    kueri = "SELECT log_date, claude_code, github, note FROM daily_log ORDER BY log_date"
+    return [tuple(r) for r in conn.execute(kueri)]
+
+
+def test_bawaan_tanggal_hari_ini_dengan_batas(conn, form_dibuat):
+    form = form_dibuat(conn)
+    assert terpilih(form) == HARI_INI
+    assert form.tanggal == HARI_INI
+    assert form.tanggal_edit.minimumDate().toString("yyyy-MM-dd") == BATAS_AWAL
+    assert form.tanggal_edit.maximumDate().toString("yyyy-MM-dd") == HARI_INI
+    assert form.tanggal_edit.displayFormat() == "dd/MM/yyyy"
+    assert form.tanggal_edit.calendarPopup()
+
+
+def test_tanggal_masa_depan_ditolak(conn, form_dibuat):
+    form = form_dibuat(conn)
+    pilih(form, "2026-03-11")
+    assert terpilih(form) == HARI_INI
+    assert form.tanggal == HARI_INI
+    form.github_check.setChecked(True)
+    form.tombol_simpan.click()
+    assert [baris[0] for baris in semua_log(conn)] == [HARI_INI]
+
+
+def test_tiga_puluh_hari_ke_belakang_diterima(conn, form_dibuat):
+    form = form_dibuat(conn)
+    pilih(form, BATAS_AWAL)
+    assert terpilih(form) == BATAS_AWAL
+    assert form.tanggal == BATAS_AWAL
+    form.github_check.setChecked(True)
+    form.tombol_simpan.click()
+    assert [baris[0] for baris in semua_log(conn)] == [BATAS_AWAL]
+
+
+def test_tiga_puluh_satu_hari_ke_belakang_ditolak(conn, form_dibuat):
+    form = form_dibuat(conn)
+    pilih(form, "2026-02-07")
+    assert terpilih(form) >= BATAS_AWAL
+    assert form.tanggal >= BATAS_AWAL
+    form.github_check.setChecked(True)
+    form.tombol_simpan.click()
+    assert all(baris[0] >= BATAS_AWAL for baris in semua_log(conn))
+
+
+def test_ganti_tanggal_memuat_log_tanggal_itu(conn, form_dibuat):
+    data.set_daily_log(conn, HARI_INI, True, False, note="hari ini")
+    data.set_daily_log(conn, KEMARIN, False, True, note="kemarin")
+    form = form_dibuat(conn)
+    pilih(form, KEMARIN)
+    assert form.tanggal == KEMARIN
+    assert isian(form) == (False, True, "kemarin")
+
+
+def test_tanggal_tanpa_log_isian_kosong_lalu_kembali(conn, form_dibuat):
+    data.set_daily_log(conn, HARI_INI, True, True, note="hari ini")
+    form = form_dibuat(conn)
+    pilih(form, KEMARIN)
+    assert isian(form) == (False, False, "")
+    pilih(form, HARI_INI)
+    assert isian(form) == (True, True, "hari ini")
+
+
+def test_perubahan_belum_disimpan_hilang_saat_ganti_tanggal(conn, form_dibuat):
+    form = form_dibuat(conn)
+    form.claude_code_check.setChecked(True)
+    form.catatan_edit.setText("belum disimpan")
+    pilih(form, KEMARIN)
+    assert isian(form) == (False, False, "")
+    assert semua_log(conn) == []
+
+
+def test_simpan_menulis_ke_tanggal_yang_dipilih(conn, form_dibuat):
+    data.set_daily_log(conn, HARI_INI, False, False, note="hari ini")
+    form = form_dibuat(conn)
+    pilih(form, KEMARIN)
+    form.claude_code_check.setChecked(True)
+    form.github_check.setChecked(True)
+    form.catatan_edit.setText("menyusul")
+    form.tombol_simpan.click()
+    assert semua_log(conn) == [(KEMARIN, 1, 1, "menyusul"), (HARI_INI, 0, 0, "hari ini")]
+    assert form.result() == QDialog.Accepted
+
+
+@pytest.mark.parametrize(
+    "catatan_baru, hasil",
+    [("catatan lama", "catatan lama"), ("", ""), ("diganti", "diganti")],
+    ids=["tidak_diubah", "dikosongkan", "diganti"],
+)
+def test_aturan_catatan_berlaku_untuk_tanggal_terpilih(conn, form_dibuat, catatan_baru, hasil):
+    data.set_daily_log(conn, HARI_INI, False, False, note="hari ini")
+    data.set_daily_log(conn, KEMARIN, True, False, note="catatan lama")
+    form = form_dibuat(conn)
+    pilih(form, KEMARIN)
+    form.catatan_edit.setText(catatan_baru)
+    form.tombol_simpan.click()
+    assert semua_log(conn) == [(KEMARIN, 1, 0, hasil), (HARI_INI, 0, 0, "hari ini")]
+
+
+def test_catatan_tidak_diubah_di_tanggal_lain_dikirim_none(conn, form_dibuat, monkeypatch):
+    data.set_daily_log(conn, KEMARIN, True, False, note="catatan lama")
+    panggilan = []
+    monkeypatch.setattr(form_module, "set_daily_log", lambda *a, **k: panggilan.append((a, k)))
+    form = form_dibuat(conn)
+    pilih(form, KEMARIN)
+    form.tombol_simpan.click()
+    assert panggilan == [((conn, KEMARIN, True, False), {"note": None})]
+
+
+def test_gagal_baca_saat_ganti_tanggal_lalu_pulih(conn, form_dibuat, monkeypatch):
+    data.set_daily_log(conn, HARI_INI, True, True, note="hari ini")
+    baca_asli = form_module.get_daily_log
+
+    def kemarin_terkunci(koneksi, tanggal):
+        if tanggal == KEMARIN:
+            raise sqlite3.OperationalError("database is locked")
+        return baca_asli(koneksi, tanggal)
+
+    monkeypatch.setattr(form_module, "get_daily_log", kemarin_terkunci)
+    form = form_dibuat(conn)
+
+    pilih(form, KEMARIN)
+    assert "database is locked" in form.error_label.text()
+    assert KEMARIN in form.error_label.text()
+    assert form.error_label.isVisible()
+    assert isian(form) == (False, False, "")  # isi hari ini tidak terbawa
+    assert not form.tombol_simpan.isEnabled()
+
+    pilih(form, HARI_INI)
+    assert form.tombol_simpan.isEnabled()
+    assert not form.error_label.isVisible()
+    assert isian(form) == (True, True, "hari ini")
+
+
+def test_judul_jendela_mengikuti_tanggal(conn, form_dibuat):
+    form = form_dibuat(conn)
+    assert form.windowTitle() == f"Log hari ini ({HARI_INI})"
+    pilih(form, KEMARIN)
+    assert form.windowTitle() == f"Log tanggal ({KEMARIN})"
+    pilih(form, HARI_INI)
+    assert form.windowTitle() == f"Log hari ini ({HARI_INI})"
