@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ctrlcoco import export
+from ctrlcoco import autostart, export
 from ctrlcoco.data import DATE_FORMAT, get_daily_log, get_nearest_task
 from ctrlcoco.form_batalkan import FormBatalkanSelesai
 from ctrlcoco.form_log import FormLogHarian
@@ -272,6 +272,13 @@ class CocoWidget(QWidget):
         menu.addAction("Ringkasan…", self.buka_ringkasan)
         menu.addAction("Tinjauan mingguan…", self.buka_tinjauan)
         menu.addAction("Ekspor CSV…", self.buka_ekspor)
+        # Bercentang sesuai keadaan registri saat menu dibuka. Dari sumber (bukan .exe)
+        # tidak ada .exe yang bisa ditunjuk, jadi nonaktif.
+        jalan = menu.addAction("Jalan otomatis saat Windows menyala")
+        jalan.setCheckable(True)
+        jalan.setEnabled(autostart.tersedia())
+        jalan.setChecked(self._jalan_otomatis_aktif())
+        jalan.triggered.connect(self.ubah_jalan_otomatis)
         menu.addSeparator()
         menu.addAction("Keluar", QApplication.quit)
         menu.exec(event.globalPos())
@@ -358,6 +365,29 @@ class CocoWidget(QWidget):
             return None
         QMessageBox.information(self, "CtrlCoco", f"Selesai. Dua file ditulis ke:\n{folder}")
         return hasil
+
+    def _jalan_otomatis_aktif(self) -> bool:
+        # Registri yang tidak terbaca tidak boleh menggagalkan menu: anggap mati.
+        try:
+            return autostart.aktif()
+        except OSError:
+            return False
+
+    def ubah_jalan_otomatis(self, nyala: bool) -> None:
+        """Nyalakan atau matikan jalan otomatis; error registri ditampilkan, bukan dilempar."""
+        # Hanya OSError (izin ditolak, kebijakan komputer) yang ditangkap: error lain
+        # adalah bug dan harus tetap terlihat.
+        try:
+            if nyala:
+                autostart.nyalakan()
+            else:
+                autostart.matikan()
+        except OSError as e:
+            QMessageBox.critical(
+                self,
+                "CtrlCoco",
+                f"Pengaturan jalan otomatis gagal.\n\nPenyebab: {e.strerror or e}",
+            )
 
     def _buka_form(self, form):
         # Widget menjadi parent form, supaya form tampil di depan Coco yang always on top.
