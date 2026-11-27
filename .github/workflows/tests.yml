@@ -6,13 +6,16 @@ on:
   push:
     branches: [main]
 
-# Workflow ini hanya perlu membaca kode.
+# Bawaannya hanya membaca kode; job badge di bawah meminta izin tulis untuk dirinya sendiri.
 permissions:
   contents: read
 
 jobs:
   pytest:
     runs-on: windows-latest
+    # Angka TOTAL dari laporan cakupan, diteruskan ke job badge.
+    outputs:
+      total: ${{ steps.cakupan.outputs.total }}
     env:
       # Server CI tidak punya layar; Qt menggambar jendela di memori saja.
       QT_QPA_PLATFORM: offscreen
@@ -25,3 +28,40 @@ jobs:
       - run: ruff check .
       # Cakupan tiap berkas dan baris yang belum dites tampil di log; tanpa ambang minimum.
       - run: pytest --cov=ctrlcoco --cov-report=term-missing
+      - id: cakupan
+        shell: bash
+        run: echo "total=$(coverage report --format=total)" >> "$GITHUB_OUTPUT"
+
+  badge:
+    # Hanya sesudah tes lulus pada push ke main; pull request tidak menulis apa pun.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: pytest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Dua push berdekatan tidak menulis branch badges bersamaan.
+    concurrency:
+      group: badge
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Buat badge
+        env:
+          TOTAL: ${{ needs.pytest.outputs.total }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/badges"
+          python scripts/badge_cakupan.py "$TOTAL" "$RUNNER_TEMP/badges/cakupan.svg"
+      # Branch badges hanya berisi satu berkas dan satu commit, ditimpa setiap kali.
+      - name: Simpan ke branch badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/badges"
+          git init -q -b badges
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cakupan.svg
+          git commit -q -m "chore: perbarui badge cakupan (#126)"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
