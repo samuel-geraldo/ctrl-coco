@@ -33,6 +33,7 @@ from ctrlcoco.posisi import posisi_form
 from ctrlcoco.ringkasan import JendelaRingkasan
 from ctrlcoco.sprites import load_frames
 from ctrlcoco.streak import get_streak
+from ctrlcoco.tinjauan import JendelaTinjauan
 
 ANIMATION_INTERVAL_MS = 500   # jarak antar frame animasi
 INTERVAL_REAKSI_MS = 120      # jarak antar frame saat bereaksi (Coco bergoyang cepat)
@@ -269,6 +270,7 @@ class CocoWidget(QWidget):
         menu.addAction("Selesaikan task…", self.buka_form_selesai)
         menu.addAction("Batalkan selesai…", self.buka_form_batalkan)
         menu.addAction("Ringkasan…", self.buka_ringkasan)
+        menu.addAction("Tinjauan mingguan…", self.buka_tinjauan)
         menu.addAction("Ekspor CSV…", self.buka_ekspor)
         menu.addSeparator()
         menu.addAction("Keluar", QApplication.quit)
@@ -299,16 +301,22 @@ class CocoWidget(QWidget):
         return self._buka_form(FormBatalkanSelesai(self.conn, self))
 
     def buka_ringkasan(self) -> JendelaRingkasan:
-        # Satu jendela saja: bila sudah terbuka, dibawa ke depan, tidak dibuat ganda.
+        return self._buka_jendela_tunggal(JendelaRingkasan)
+
+    def buka_tinjauan(self) -> JendelaTinjauan:
+        return self._buka_jendela_tunggal(JendelaTinjauan)
+
+    def _buka_jendela_tunggal(self, kelas):
+        # Satu jendela per jenis: bila sudah terbuka, dibawa ke depan, tidak dibuat ganda.
         # Yang sudah ditutup tapi belum dihapus Qt (hapus tertunda) tidak dihitung.
-        for jendela in self.findChildren(JendelaRingkasan):
+        for jendela in self.findChildren(kelas):
             if jendela.isVisible():
                 jendela.raise_()
                 jendela.activateWindow()
                 return jendela
         # Parent widget, supaya jendela tampil di depan Coco yang always on top. Tidak
         # modal: Coco tetap bisa diklik. show(), bukan open().
-        jendela = JendelaRingkasan(self.conn, parent=self)
+        jendela = kelas(self.conn, parent=self)
         jendela.show()
         return jendela
 
