@@ -299,7 +299,7 @@ Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review l
 
 ## Peta jalan
 
-Mengikuti milestone di GitHub.
+Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG.md](CHANGELOG.md).
 
 **v0.1.0** (tenggat 2 Desember 2026)
 
