@@ -78,11 +78,12 @@ def test_v010_menyisakan_empat_butir_yang_belum_selesai():
         assert kata in teks
 
 
-def test_v020_hanya_berisi_jalan_otomatis_dan_studi_kasus():
+def test_v020_hanya_berisi_jalan_otomatis_studi_kasus_dan_rilisnya():
     _, v020 = peta_per_versi()
     assert v020 == [
         ("x", "Opsi jalan otomatis saat Windows menyala"),
         (" ", "Studi kasus portofolio"),
+        (" ", "GitHub Release v0.2.0"),
     ]
 
 
