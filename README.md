@@ -26,7 +26,7 @@ Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desa
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
 - Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
-- Menu klik kanan: catat log hari ini (atau hari yang terlewat), tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan dan Tinjauan mingguan, dan ekspor data ke CSV
+- Menu klik kanan: catat log hari ini (atau hari yang terlewat), tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan dan Tinjauan mingguan, ekspor data ke CSV, dan jalan otomatis saat Windows menyala (dari `.exe`)
 - Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, on-time rate, median waktu penyelesaian per area, dan produktivitas per hari dalam seminggu
 - Jendela Tinjauan mingguan 7 hari terakhir: task selesai, task terlambat, hari valid, dan streak
 - Form muncul di samping Coco, jadi Coco tetap terlihat
@@ -50,7 +50,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 ### Menu klik kanan
 
-Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Batalkan selesai…**, **Ringkasan…**, **Tinjauan mingguan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Batalkan selesai…**, **Ringkasan…**, **Tinjauan mingguan…**, **Ekspor CSV…**, **Jalan otomatis saat Windows menyala** (kotak centang), dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -103,6 +103,16 @@ Klik kanan widget lalu pilih **Ekspor CSV…** dan pilih folder tujuan. Dua file
 | `daily_log.csv` | `tanggal`, `claude_code`, `github`, `catatan` |
 
 `area` berisi nama area. `status` bernilai `belum` atau `selesai`, centang log bernilai `ya` atau `tidak`, dan nilai yang kosong ditulis sebagai sel kosong. File memakai UTF-8 dengan BOM, jadi bisa langsung dibuka di Excel tanpa huruf yang rusak. Bila `task.csv` atau `daily_log.csv` sudah ada di folder itu, widget bertanya dulu sebelum menimpanya. Bila gagal menulis (misalnya folder tidak bisa ditulisi), pesan penyebabnya muncul dan widget tetap berjalan. Impor dari CSV belum ada.
+
+### Jalan otomatis saat Windows menyala
+
+Klik kanan widget lalu pilih **Jalan otomatis saat Windows menyala**. Bila bercentang, CtrlCoco terbuka sendiri setiap kali kamu login ke Windows; pilih sekali lagi untuk mematikannya (centangnya hilang). Centang mengikuti keadaan sebenarnya setiap menu dibuka.
+
+- **Hanya dari `CtrlCoco.exe`.** Saat dijalankan dari sumber (`python -m ctrlcoco`) pilihan ini abu-abu, karena tidak ada `.exe` yang bisa ditunjuk.
+- **Cara kerjanya:** satu entri bernama `CtrlCoco` di kunci registri `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, berisi path `.exe` yang sedang berjalan. Tidak butuh hak administrator, dan hanya berlaku untuk akun Windows ini.
+- **Bila `.exe` dipindah**, entri lama menunjuk ke tempat yang kosong dan pilihan tampil tidak bercentang. Jalankan `.exe` di lokasi barunya, lalu pilih opsi ini untuk memperbaruinya.
+- **Cara lain mematikannya:** Pengaturan Windows → Aplikasi → Aplikasi mulai otomatis, atau Task Manager → tab Startup/Aplikasi startup.
+- Bila Windows menolak mengubah pengaturan (misalnya karena kebijakan komputer), pesan penyebabnya muncul dan widget tetap berjalan.
 
 ## Privasi
 
@@ -173,6 +183,8 @@ Untuk mengisi ulang, hapus `demo.db` lalu jalankan skripnya lagi.
 **Bisa dipakai di macOS atau Linux?** Belum. CtrlCoco dikembangkan dan diuji di Windows, dan build `.exe` hanya untuk Windows.
 
 **Bisa membatalkan task yang sudah selesai?** Bisa, lihat [Membatalkan status selesai](#membatalkan-status-selesai).
+
+**Bisa terbuka sendiri saat Windows menyala?** Bisa, dari `CtrlCoco.exe`, lihat [Jalan otomatis saat Windows menyala](#jalan-otomatis-saat-windows-menyala).
 
 **Bisa mengimpor dari CSV?** Belum; impor CSV belum dijadwalkan.
 
@@ -259,6 +271,7 @@ src/ctrlcoco/
   perayaan.py  kapan Coco merayakan (tanpa Qt)
   posisi.py    posisi form di samping Coco (tanpa Qt)
   aset.py      lokasi folder assets (dari kode atau di dalam .exe)
+  autostart.py jalan otomatis saat Windows menyala: entri Run di registri (tanpa Qt)
   sprites.py   muat frame sprite, gambar sementara bila file tidak ada
   widget.py    jendela widget (PySide6), dua QTimer: animasi dan refresh
   form_dasar.py kelas dasar bersama untuk form
@@ -326,7 +339,7 @@ Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG
 - [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
 - [x] Kelas dasar form untuk tiga form
 - [x] Laporan cakupan tes dan badge di README
-- [ ] Opsi jalan otomatis saat Windows menyala
+- [x] Opsi jalan otomatis saat Windows menyala
 - [ ] CHANGELOG dan studi kasus
 - [ ] Rilis v0.2.0
 

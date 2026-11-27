@@ -29,6 +29,7 @@ Belum ada versi yang dirilis, jadi semua perubahan masih di bagian **Unreleased*
 - Lisensi MIT untuk kode, dengan nama, logo, dan karakter Coco dikecualikan (#87, PR #115).
 - Tes otomatis, lint ruff, dan laporan cakupan tes di CI (#15, #67, dan #68, PR #16, #97, dan #125).
 - Badge cakupan tes di README, dibuat oleh CI sendiri tanpa layanan luar (#126, PR #130).
+- Opsi jalan otomatis saat Windows menyala dari menu klik kanan, khusus `.exe` (#76, PR #133).
 
 ### Changed
 
