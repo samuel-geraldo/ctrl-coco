@@ -57,7 +57,10 @@ def main(argv=None) -> int:
 
     widget = CocoWidget(conn)
     widget.show()
-    return app.exec()
+    try:
+        return app.exec()
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
