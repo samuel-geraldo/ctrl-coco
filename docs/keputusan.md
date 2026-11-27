@@ -138,3 +138,10 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - Peta jalan dibagi per milestone (v0.1.0 dan v0.2.0) dan ditulis per kelompok pekerjaan, bukan satu baris per issue, supaya tidak ikut usang tiap kali issue kecil selesai. Tahap 6 (tinjauan mingguan) pindah ke v0.2.0 sesuai milestone di GitHub; penanda "(opsional)" dihapus karena sudah diganti milestone.
 - Kalimat Privasi memuat "semua data lokal, tanpa akun dan jaringan" persis, karena itu kriteria #77 dan dijaga tes.
 - Tes `test_readme.py` menolak gambar yang berkas tujuannya belum ada. Tangkapan layar (#88) dan sprite asli (#71-#73) belum ada, jadi gambar itu baru ditambahkan bersama berkasnya, bukan lebih dulu.
+
+## Isi log untuk tanggal selain hari ini (#56)
+
+- **Tanggal masa depan ditolak, mundur paling jauh 30 hari** (hari ini - 30 masih boleh), bawaannya hari ini. Batasnya dipasang sebagai rentang `QDateEdit`, jadi nilai form tidak pernah keluar dari rentang. `set_daily_log` tidak ikut membatasi: aturan ini milik form, dan fungsi data tetap menerima tanggal apa pun yang formatnya benar (dipakai juga oleh data demo).
+- **Mengganti tanggal memuat ulang isian** dari `get_daily_log`; perubahan yang belum disimpan dibuang tanpa konfirmasi. Isian dikosongkan lebih dulu, dan bila log gagal dibaca tombol Simpan dinonaktifkan, supaya isi tanggal lain tidak tertulis ke tanggal terpilih.
+- **Judul jendela** "Log hari ini (tanggal)" untuk hari ini dan "Log tanggal (tanggal)" untuk hari lain. Label menu klik kanan tidak diubah.
+- **Perayaan tidak berubah:** hanya log hari ini yang baru menjadi valid yang dirayakan. Mengisi tanggal lampau tidak membuat Coco melompat, walaupun streak melewati tonggak.

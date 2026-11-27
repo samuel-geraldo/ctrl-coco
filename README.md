@@ -25,7 +25,7 @@ Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desa
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
 - Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
-- Menu klik kanan: catat log hari ini, tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan, dan ekspor data ke CSV
+- Menu klik kanan: catat log hari ini (atau hari yang terlewat), tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan, dan ekspor data ke CSV
 - Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, on-time rate, median waktu penyelesaian per area, dan produktivitas per hari dalam seminggu
 - Form muncul di samping Coco, jadi Coco tetap terlihat
 - Data dibaca ulang otomatis setiap 60 detik dan tersimpan lokal di SQLite
@@ -54,9 +54,13 @@ Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log ha
 
 Klik kanan widget lalu pilih **Log hari ini…**. Centang **Claude Code** dan/atau **GitHub** sesuai aktivitas hari ini, isi catatan bila perlu, lalu klik **Simpan**. Jika log hari ini sudah pernah diisi, form langsung menampilkan isinya.
 
+Untuk mengisi hari yang terlewat, ganti **Tanggal** di bagian atas form (bawaannya hari ini). Isian langsung berganti ke log tanggal itu, dan **Simpan** menulis ke tanggal yang dipilih.
+
 - Catatan yang tidak diubah tetap tersimpan; catatan yang dikosongkan dihapus.
 - Hari dihitung valid untuk streak jika kedua kotak dicentang. Setelah tersimpan, streak dan ekspresi Coco langsung berubah.
-- Log hanya bisa diisi untuk hari ini.
+- Tanggal bisa dipilih dari 30 hari lalu sampai hari ini; tanggal masa depan ditolak.
+- Perubahan yang belum disimpan hilang bila tanggal diganti.
+- Coco melompat hanya saat log hari ini baru menjadi valid, tidak saat mengisi tanggal lampau.
 
 ### Menambah task
 
@@ -236,7 +240,7 @@ src/ctrlcoco/
   form_dasar.py kelas dasar bersama untuk form
   form_task.py form tambah task (QDialog) yang dibuka dari menu klik kanan
   deadline.py  deadline untuk tombol cepat (tanpa Qt)
-  form_log.py  form log hari ini (centang Claude Code dan GitHub, catatan)
+  form_log.py  form log harian (pilih tanggal, centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
   form_batalkan.py form untuk mengembalikan task selesai ke belum selesai
   analytics.py metrik untuk jendela Ringkasan (tanpa Qt)
