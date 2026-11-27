@@ -2,6 +2,8 @@ import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from ctrlcoco import analytics, data, streak
 
 AWAL = date(2026, 3, 1)
@@ -524,3 +526,96 @@ def test_per_hari_di_luar_rentang_diabaikan_batas_inklusif(conn):
     for tanggal in ("2026-02-28", "2026-03-01", "2026-03-31", "2026-04-01"):
         data.set_daily_log(conn, tanggal, True, True)
     assert _per_hari(conn) == {"Selasa": (1, 1), "Minggu": (1, 1)}
+
+
+# --- tinjauan mingguan: 7 hari terakhir sampai hari ini (#80) ---
+
+SEKARANG = datetime(2026, 3, 10, 15, 0)  # 7 hari: 04/03 sampai 10/03
+AWAL_MINGGU = date(2026, 3, 4)
+
+
+def _task_tinjauan(conn, area_id, deadline=None, selesai=None):
+    """Task dengan deadline dan waktu selesai tertentu; selesai=None berarti masih todo."""
+    dibuat = datetime(2026, 1, 1, 8, 0)
+    task_id = data.add_task(conn, area_id, "t", deadline=deadline, now=dibuat)
+    if selesai is not None:
+        data.complete_task(conn, task_id, now=datetime.strptime(selesai, "%Y-%m-%d %H:%M"))
+    return task_id
+
+
+def test_rentang_tinjauan_tujuh_hari_berakhir_hari_ini():
+    awal, akhir = analytics.rentang_tinjauan(SEKARANG.date())
+    assert (awal, akhir) == (AWAL_MINGGU, SEKARANG.date())
+    assert (akhir - awal).days + 1 == analytics.RENTANG_TINJAUAN_HARI == 7
+
+
+def test_tinjauan_database_kosong(conn):
+    hasil = analytics.tinjauan_mingguan(conn, SEKARANG)
+    assert hasil == analytics.Tinjauan(AWAL_MINGGU, SEKARANG.date(), 0, 0, 0, 0)
+
+
+def test_tinjauan_task_selesai_batas_hari_pertama_dan_terakhir(conn):
+    area = data.add_area(conn, "Kuliah")
+    for selesai in (
+        "2026-03-03 23:59",  # sehari sebelum rentang
+        "2026-03-04 00:00",
+        "2026-03-07 12:00",
+        "2026-03-10 23:59",
+        "2026-03-11 00:00",  # sesudah rentang
+    ):
+        _task_tinjauan(conn, area, selesai=selesai)
+    _task_tinjauan(conn, area)  # todo tidak dihitung
+    assert analytics.tinjauan_mingguan(conn, SEKARANG).task_selesai == 3
+
+
+@pytest.mark.parametrize(
+    "deadline, selesai, terlambat",
+    [
+        ("2026-03-05 10:00", "2026-03-05 10:01", 1),  # selesai sesudah deadline
+        ("2026-03-05 10:00", "2026-03-05 10:00", 0),  # tepat pada deadline
+        ("2026-03-05 10:00", "2026-03-05 09:00", 0),  # sebelum deadline
+        ("2026-03-05 10:00", None, 1),                # todo, deadline lewat
+        ("2026-03-10 14:59", None, 1),                # lewat semenit
+        ("2026-03-10 15:00", None, 0),                # tepat sekarang: belum lewat
+        ("2026-03-10 18:00", None, 0),                # nanti sore
+        ("2026-03-04 00:00", None, 1),                # batas awal rentang
+        ("2026-03-03 23:59", None, 0),                # deadline di luar rentang
+        ("2026-03-03 23:59", "2026-03-05 10:00", 0),  # telat, tapi deadline di luar rentang
+        ("2026-03-11 09:00", None, 0),                # deadline sesudah rentang
+        (None, None, 0),                              # tanpa deadline
+        (None, "2026-03-05 10:00", 0),
+    ],
+)
+def test_tinjauan_definisi_terlambat(conn, deadline, selesai, terlambat):
+    area = data.add_area(conn, "Kuliah")
+    _task_tinjauan(conn, area, deadline, selesai)
+    assert analytics.tinjauan_mingguan(conn, SEKARANG).task_terlambat == terlambat
+
+
+def test_tinjauan_terlambat_menjumlahkan_selesai_telat_dan_todo_lewat(conn):
+    area = data.add_area(conn, "Kuliah")
+    _task_tinjauan(conn, area, "2026-03-05 10:00", "2026-03-06 10:00")
+    _task_tinjauan(conn, area, "2026-03-08 10:00")
+    _task_tinjauan(conn, area, "2026-03-09 10:00", "2026-03-09 08:00")
+    assert analytics.tinjauan_mingguan(conn, SEKARANG).task_terlambat == 2
+
+
+def test_tinjauan_hari_valid_hanya_di_dalam_rentang(conn):
+    for tanggal in ("2026-03-03", "2026-03-04", "2026-03-07", "2026-03-10", "2026-03-11"):
+        data.set_daily_log(conn, tanggal, True, True)
+    data.set_daily_log(conn, "2026-03-05", True, False)  # tidak valid
+    assert analytics.tinjauan_mingguan(conn, SEKARANG).jumlah_hari_valid == 3
+
+
+def test_tinjauan_streak_berjalan_boleh_lebih_dari_tujuh(conn):
+    for n in range(10):  # 01/03 sampai 10/03
+        data.set_daily_log(conn, (date(2026, 3, 10) - timedelta(days=n)).isoformat(), True, True)
+    hasil = analytics.tinjauan_mingguan(conn, SEKARANG)
+    assert hasil.streak == 10 == streak.get_streak(conn, SEKARANG.date())
+    assert hasil.jumlah_hari_valid == 7
+
+
+def test_tinjauan_streak_dari_kemarin_bila_hari_ini_belum_valid(conn):
+    for tanggal in ("2026-03-08", "2026-03-09"):
+        data.set_daily_log(conn, tanggal, True, True)
+    assert analytics.tinjauan_mingguan(conn, SEKARANG).streak == 2

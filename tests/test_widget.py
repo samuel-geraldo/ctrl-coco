@@ -24,6 +24,7 @@ from ctrlcoco.pesan import (
 from ctrlcoco.ringkasan import JendelaRingkasan
 from ctrlcoco.sprites import PLACEHOLDER_COLORS
 from ctrlcoco.streak import get_streak
+from ctrlcoco.tinjauan import JendelaTinjauan
 from ctrlcoco.widget import (
     ANIMATION_INTERVAL_MS,
     DURASI_PERAYAAN_MS,
@@ -508,7 +509,7 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
     aksi = buka_menu(w, monkeypatch)
     assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
         "Log hari ini…", "Tambah task…", "Selesaikan task…", "Batalkan selesai…",
-        "Ringkasan…", "Ekspor CSV…", "---", "Keluar",
+        "Ringkasan…", "Tinjauan mingguan…", "Ekspor CSV…", "---", "Keluar",
     ]
 
 
@@ -551,6 +552,66 @@ def test_buka_tutup_ringkasan_berkali_kali_tidak_meninggalkan_jendela_lama(app, 
         assert len(terbuka) == 1
         terbuka[0].close()
         assert form_sudah_dihapus(w, JendelaRingkasan)
+    w.close()
+
+
+def jendela_tinjauan_terbuka(w):
+    return [j for j in w.findChildren(JendelaTinjauan) if j.isVisible()]
+
+
+def test_tinjauan_membuka_jendela_dan_menutupnya_tidak_menutup_widget(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")
+    terbuka = jendela_tinjauan_terbuka(w)
+    assert len(terbuka) == 1
+    assert terbuka[0].parent() is w          # muncul di atas Coco
+    assert not terbuka[0].isModal()          # Coco tetap bisa diklik
+
+    terbuka[0].close()
+    assert form_sudah_dihapus(w, JendelaTinjauan)
+    assert w.isVisible()
+    w.close()
+
+
+def test_tinjauan_dipilih_dua_kali_tidak_menggandakan_jendela(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")
+    pertama = jendela_tinjauan_terbuka(w)[0]
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")
+    assert jendela_tinjauan_terbuka(w) == [pertama]
+    pertama.close()
+    w.close()
+
+
+def test_tinjauan_dibuka_lagi_setelah_ditutup_membaca_data_baru(app, conn, monkeypatch):
+    data.set_daily_log(conn, date.today().isoformat(), True, False)
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")
+    pertama = jendela_tinjauan_terbuka(w)[0]
+    assert pertama.hari_valid_label.text() == "Hari valid: 0 dari 7"
+    pertama.close()
+
+    data.set_daily_log(conn, date.today().isoformat(), True, True)
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")  # sebelum Qt menghapus yang lama
+    [kedua] = jendela_tinjauan_terbuka(w)
+    assert kedua.hari_valid_label.text() == "Hari valid: 1 dari 7"
+    kedua.close()
+    w.close()
+
+
+def test_ringkasan_dan_tinjauan_bisa_terbuka_bersamaan(app, conn, monkeypatch):
+    w = CocoWidget(conn)
+    w.show()
+    picu_aksi(w, monkeypatch, "Ringkasan…")
+    picu_aksi(w, monkeypatch, "Tinjauan mingguan…")
+    ringkasan = jendela_ringkasan_terbuka(w)
+    tinjauan = jendela_tinjauan_terbuka(w)
+    assert len(ringkasan) == 1 and len(tinjauan) == 1
+    ringkasan[0].close()
+    tinjauan[0].close()
     w.close()
 
 
