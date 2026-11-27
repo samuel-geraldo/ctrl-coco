@@ -339,7 +339,7 @@ Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG
 - [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
 - [x] Kelas dasar form untuk tiga form
 - [x] Laporan cakupan tes dan badge di README
-- [ ] Opsi jalan otomatis saat Windows menyala
+- [x] Opsi jalan otomatis saat Windows menyala
 - [ ] CHANGELOG dan studi kasus
 - [ ] Rilis v0.2.0
 
