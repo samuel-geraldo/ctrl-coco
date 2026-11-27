@@ -75,6 +75,13 @@ def test_main_tanpa_db_memakai_folder_appdata(app, tmp_path, monkeypatch, pesan,
     assert tabel_di(tmp_path / "CtrlCoco" / "ctrlcoco.db") == {"area", "task", "daily_log"}
 
 
+def test_main_menutup_koneksi_saat_keluar_normal(app, tmp_path, pesan, exec_dipanggil,
+                                                 koneksi_dibuka):
+    assert titik_masuk.main(["--db", str(tmp_path / "baru.db")]) == 0
+    assert len(koneksi_dibuka) == 1
+    assert sudah_ditutup(koneksi_dibuka[0])
+
+
 # --- jalur gagal ---
 
 
