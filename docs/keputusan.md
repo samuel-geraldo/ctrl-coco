@@ -152,3 +152,12 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **CI menjalankan `pytest --cov=ctrlcoco --cov-report=term-missing`**, jadi persentase per berkas dan baris yang belum dites terlihat di log job. Tanpa Codecov atau layanan luar lain.
 - **Tanpa ambang minimum:** cakupan tidak menggagalkan CI. Ambang bisa menyusul setelah angka awal diketahui.
 - **Badge cakupan belum dikerjakan**, jadi #68 tetap terbuka. Badge buatan workflow sendiri butuh branch tambahan dan izin tulis untuk `GITHUB_TOKEN`; untuk sekarang itu tidak diambil.
+
+## Tinjauan mingguan (#80)
+
+- **Rentang:** 7 hari terakhir sampai hari ini, inklusif. Rentang lain di luar cakupan.
+- **Terlambat:** deadline jatuh dalam rentang dan tidak dipenuhi, yaitu `done` dengan `completed_at > deadline`, atau `todo` dengan deadline lebih kecil dari waktu sekarang. Selesai tepat pada deadline dihitung tepat waktu, sama dengan on-time rate. Todo yang deadline-nya sama dengan menit sekarang belum terlambat (gelembung Coco sudah menyebutnya terlambat pada menit itu). Tunggakan dengan deadline sebelum rentang tidak dihitung, supaya semua angka task memakai rentang yang sama.
+- **Streak:** `get_streak`, sama dengan gelembung Coco. Bisa lebih dari 7, jadi satu-satunya angka yang melihat data di luar rentang.
+- **Catatan refleksi mingguan tidak dibuat:** tidak diminta kriteria selesai, dan menyimpannya butuh tabel baru serta migrasi skema. Catatan harian sudah ada.
+- **Pesan kosong** hanya bila database belum punya task atau log (`ada_data`, sama dengan Ringkasan). Bila hanya 7 hari terakhir yang kosong, angka 0 ditampilkan.
+- **Jendela** tidak modal dan hanya satu sekaligus, seperti Ringkasan (keduanya memakai `_buka_jendela_tunggal`). Angka dibaca saat jendela dibuka, tanpa refresh otomatis.

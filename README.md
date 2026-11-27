@@ -25,8 +25,9 @@ Proyek ini sekaligus latihan membangun aplikasi kecil secara utuh dan rapi: desa
 - Widget tanpa bingkai, selalu di atas jendela lain, latar tembus pandang, bisa digeser dengan mouse
 - Menampilkan streak dan task terdekat berdeadline dalam gelembung bicara Coco
 - Ekspresi Coco mengikuti kondisi (waspada, senang, tidur) dengan animasi frame bergantian; klik Coco membuatnya bereaksi, dan Coco melompat merayakan log yang valid, task selesai, dan tonggak streak (3, 7, 14, dan 30 hari)
-- Menu klik kanan: catat log hari ini (atau hari yang terlewat), tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan, dan ekspor data ke CSV
+- Menu klik kanan: catat log hari ini (atau hari yang terlewat), tambah task (dan area baru, dengan tombol deadline cepat), selesaikan task (bisa dibatalkan), buka Ringkasan dan Tinjauan mingguan, dan ekspor data ke CSV
 - Jendela Ringkasan 12 minggu: heatmap hari valid, streak terpanjang, completion rate per area, on-time rate, median waktu penyelesaian per area, dan produktivitas per hari dalam seminggu
+- Jendela Tinjauan mingguan 7 hari terakhir: task selesai, task terlambat, hari valid, dan streak
 - Form muncul di samping Coco, jadi Coco tetap terlihat
 - Data dibaca ulang otomatis setiap 60 detik dan tersimpan lokal di SQLite
 
@@ -48,7 +49,7 @@ Aturan lengkap dan alasannya ada di [`docs/keputusan.md`](docs/keputusan.md).
 
 ### Menu klik kanan
 
-Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Batalkan selesai…**, **Ringkasan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
+Klik kiri lalu seret untuk menggeser widget; klik dua kali untuk mencatat log hari ini. Klik kanan untuk membuka menu: **Log hari ini…**, **Tambah task…**, **Selesaikan task…**, **Batalkan selesai…**, **Ringkasan…**, **Tinjauan mingguan…**, **Ekspor CSV…**, dan **Keluar** untuk menutup.
 
 ### Mencatat log hari ini
 
@@ -79,6 +80,17 @@ Klik kanan widget lalu pilih **Selesaikan task…**. Form menampilkan semua task
 ### Membatalkan status selesai
 
 Salah menandai task? Klik kanan widget lalu pilih **Batalkan selesai…**. Form menampilkan task yang sudah selesai, yang terakhir diselesaikan di atas. Pilih satu lalu klik **Kembalikan**. Task itu kembali belum selesai, waktu selesainya dihapus, dan widget langsung diperbarui. Riwayat perubahan status tidak disimpan.
+
+### Tinjauan mingguan
+
+Klik kanan widget lalu pilih **Tinjauan mingguan…**. Jendela menampilkan 7 hari terakhir, termasuk hari ini:
+
+- **Task selesai:** task yang diselesaikan dalam 7 hari itu.
+- **Task terlambat:** task yang deadline-nya jatuh dalam 7 hari itu dan tidak dipenuhi, yaitu selesai sesudah deadline, atau belum selesai padahal deadline sudah lewat. Selesai tepat pada deadline dihitung tepat waktu. Tunggakan dengan deadline lebih lama tidak dihitung.
+- **Hari valid:** hari dengan Claude Code **dan** GitHub tercatat.
+- **Streak saat ini:** sama dengan streak di gelembung Coco, jadi bisa lebih dari 7.
+
+Angka dibaca saat jendela dibuka; tutup lalu buka lagi untuk memperbaruinya. Bila belum ada task atau log sama sekali, yang tampil hanya pesan "Belum ada data".
 
 ### Ekspor ke CSV
 
@@ -252,8 +264,9 @@ src/ctrlcoco/
   form_log.py  form log harian (pilih tanggal, centang Claude Code dan GitHub, catatan)
   form_selesai.py form untuk menandai task selesai
   form_batalkan.py form untuk mengembalikan task selesai ke belum selesai
-  analytics.py metrik untuk jendela Ringkasan (tanpa Qt)
+  analytics.py metrik untuk jendela Ringkasan dan Tinjauan mingguan (tanpa Qt)
   ringkasan.py jendela Ringkasan (rentang 12 minggu, pesan bila belum ada data)
+  tinjauan.py  jendela Tinjauan mingguan (7 hari terakhir, hanya menampilkan)
   heatmap.py   heatmap kalender hari valid (satu sel per hari, hanya menggambar)
   grafik_area.py grafik batang completion rate per area dan teks on-time rate
   export.py    ekspor task dan daily_log ke CSV (tanpa Qt)
