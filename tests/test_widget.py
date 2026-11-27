@@ -1,4 +1,5 @@
 import sqlite3
+import sys
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -7,7 +8,7 @@ from PySide6.QtGui import QColor, QContextMenuEvent, QMouseEvent, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QMessageBox
 
-from ctrlcoco import data, db
+from ctrlcoco import autostart, data, db
 from ctrlcoco import widget as widget_module
 from ctrlcoco.form_batalkan import FormBatalkanSelesai
 from ctrlcoco.form_log import FormLogHarian
@@ -509,7 +510,8 @@ def test_menu_klik_kanan_berurutan(app, conn, monkeypatch):
     aksi = buka_menu(w, monkeypatch)
     assert [("---" if a.isSeparator() else a.text()) for a in aksi] == [
         "Log hari ini…", "Tambah task…", "Selesaikan task…", "Batalkan selesai…",
-        "Ringkasan…", "Tinjauan mingguan…", "Ekspor CSV…", "---", "Keluar",
+        "Ringkasan…", "Tinjauan mingguan…", "Ekspor CSV…",
+        "Jalan otomatis saat Windows menyala", "---", "Keluar",
     ]
 
 
@@ -1107,3 +1109,127 @@ def test_batalkan_selesai_task_kembali_jadi_task_terdekat(app, conn, monkeypatch
     assert '"Kuis"' in w.bubble_label.text()
     assert w.mood == "waspada"
     assert form_sudah_dihapus(w, FormBatalkanSelesai)
+
+
+# --- Jalan otomatis (#76): menu bercentang, menulis dan menghapus entri, error ditampilkan ---
+
+EXE_TES = r"C:\Apps\CtrlCoco\CtrlCoco.exe"
+JALAN_OTOMATIS = "Jalan otomatis saat Windows menyala"
+
+
+class RegistriMenuPalsu:
+    """Pengganti RegistriRun untuk tes widget: kamus di memori, bisa dibuat gagal."""
+
+    def __init__(self):
+        self.isi = {}
+        self.gagal_baca = None
+        self.gagal_tulis = None
+
+    def baca(self, nama):
+        if self.gagal_baca:
+            raise self.gagal_baca
+        return self.isi.get(nama)
+
+    def tulis(self, nama, nilai):
+        if self.gagal_tulis:
+            raise self.gagal_tulis
+        self.isi[nama] = nilai
+
+    def hapus(self, nama):
+        if self.gagal_tulis:
+            raise self.gagal_tulis
+        self.isi.pop(nama, None)
+
+
+@pytest.fixture
+def registri(monkeypatch):
+    palsu = RegistriMenuPalsu()
+    monkeypatch.setattr(autostart, "RegistriRun", lambda: palsu)
+    return palsu
+
+
+@pytest.fixture
+def sebagai_exe(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", EXE_TES)
+
+
+def aksi_jalan_otomatis(w, monkeypatch):
+    aksi = [a for a in buka_menu(w, monkeypatch) if a.text() == JALAN_OTOMATIS]
+    assert len(aksi) == 1
+    return aksi[0]
+
+
+def test_jalan_otomatis_dari_exe_mati_tampil_aktif_dan_tidak_dicentang(
+    app, conn, monkeypatch, registri, sebagai_exe
+):
+    w = CocoWidget(conn)  # disimpan: widget yang dibersihkan ikut menghapus menunya
+    aksi = aksi_jalan_otomatis(w, monkeypatch)
+    assert aksi.isCheckable()
+    assert aksi.isEnabled()
+    assert not aksi.isChecked()
+
+
+def test_jalan_otomatis_dicentang_bila_entri_menunjuk_ke_exe_ini(
+    app, conn, monkeypatch, registri, sebagai_exe
+):
+    registri.isi[autostart.NAMA_ENTRI] = f'"{EXE_TES}"'
+    w = CocoWidget(conn)
+    assert aksi_jalan_otomatis(w, monkeypatch).isChecked()
+
+
+def test_jalan_otomatis_dari_sumber_tidak_bisa_dipilih(app, conn, monkeypatch, registri):
+    monkeypatch.delattr(sys, "frozen", raising=False)
+    w = CocoWidget(conn)  # disimpan: widget yang dibersihkan ikut menghapus menunya
+    aksi = aksi_jalan_otomatis(w, monkeypatch)
+    assert not aksi.isEnabled()
+    assert not aksi.isChecked()
+
+
+def test_memilih_jalan_otomatis_menulis_entri_ke_exe(
+    app, conn, monkeypatch, registri, sebagai_exe, dialog
+):
+    w = CocoWidget(conn)
+    aksi_jalan_otomatis(w, monkeypatch).trigger()
+    assert registri.isi == {autostart.NAMA_ENTRI: f'"{EXE_TES}"'}
+    assert dialog.error == []
+
+
+def test_memilih_jalan_otomatis_saat_dicentang_menghapus_entri(
+    app, conn, monkeypatch, registri, sebagai_exe, dialog
+):
+    registri.isi[autostart.NAMA_ENTRI] = f'"{EXE_TES}"'
+    registri.isi["Spotify"] = "spotify.exe"
+    w = CocoWidget(conn)
+    aksi_jalan_otomatis(w, monkeypatch).trigger()
+    assert registri.isi == {"Spotify": "spotify.exe"}
+    assert dialog.error == []
+
+
+def test_menu_dibuka_lagi_mengikuti_keadaan_terbaru(app, conn, monkeypatch, registri, sebagai_exe):
+    w = CocoWidget(conn)
+    aksi_jalan_otomatis(w, monkeypatch).trigger()
+    assert aksi_jalan_otomatis(w, monkeypatch).isChecked()
+    aksi_jalan_otomatis(w, monkeypatch).trigger()
+    assert not aksi_jalan_otomatis(w, monkeypatch).isChecked()
+
+
+def test_jalan_otomatis_gagal_menulis_menampilkan_pesan_error_tanpa_crash(
+    app, conn, monkeypatch, registri, sebagai_exe, dialog
+):
+    registri.gagal_tulis = PermissionError(5, "Akses ditolak")
+    w = CocoWidget(conn)
+    aksi_jalan_otomatis(w, monkeypatch).trigger()  # tidak boleh melempar
+    assert registri.isi == {}
+    assert len(dialog.error) == 1
+    assert dialog.error[0][0] is w
+    assert "Akses ditolak" in dialog.error[0][2]
+
+
+def test_menu_tetap_terbuka_dan_tidak_dicentang_bila_registri_gagal_dibaca(
+    app, conn, monkeypatch, registri, sebagai_exe
+):
+    registri.gagal_baca = PermissionError(5, "Akses ditolak")
+    w = CocoWidget(conn)  # disimpan: widget yang dibersihkan ikut menghapus menunya
+    aksi = aksi_jalan_otomatis(w, monkeypatch)  # tidak boleh melempar
+    assert not aksi.isChecked()
