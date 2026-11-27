@@ -328,15 +328,16 @@ Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG
 - [x] Data contoh 60 hari, lint di CI, dependensi terkunci, dan LICENSE MIT
 - [x] Lokasi aset yang benar di `.exe` dan build `.exe` lewat GitHub Actions
 - [ ] Sprite pixel art Coco yang asli (senang, waspada, tidur)
-- [ ] Skrip tangkapan layar dan README bergambar
+- [x] Skrip tangkapan layar otomatis
+- [ ] README bergambar
 - [ ] GitHub Release v0.1.0 dengan `.exe`
 
 **v0.2.0** (tenggat 19 Desember 2026)
 
-- [ ] Tahap 6: jendela Tinjauan mingguan
+- [x] Tahap 6: jendela Tinjauan mingguan
 - [x] Analitik: waktu penyelesaian task per area dan produktivitas per hari dalam seminggu
 - [x] SQL view untuk statistik task
-- [ ] Batalkan status selesai dan isi log untuk tanggal selain hari ini
+- [x] Batalkan status selesai dan isi log untuk tanggal selain hari ini
 - [x] Kelas dasar form untuk tiga form
 - [x] Laporan cakupan tes dan badge di README
 - [x] Opsi jalan otomatis saat Windows menyala
