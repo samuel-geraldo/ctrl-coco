@@ -2,6 +2,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 README = (REPO / "README.md").read_text(encoding="utf-8")
 # Isi blok kode dibuang: baris "## ..." di dalamnya (komentar skrip) bukan judul.
@@ -36,13 +38,50 @@ def test_privasi_memuat_kalimat_wajib():
     assert "semua data lokal, tanpa akun dan jaringan" in isi_bagian("Privasi").lower()
 
 
-def test_peta_jalan_memisahkan_v010_dan_v020_dengan_tahap_6_di_v020():
+def peta_per_versi():
+    """Butir peta jalan tiap versi sebagai daftar (tanda centang, teks)."""
+    v010, v020 = isi_bagian("Peta jalan").split("**v0.2.0**", 1)
+    return [re.findall(r"^- \[([ x])\] (.+)$", t, re.MULTILINE) for t in (v010, v020)]
+
+
+def test_peta_jalan_memuat_tenggat_tiap_versi():
     peta = isi_bagian("Peta jalan")
-    v010, v020 = peta.split("v0.2.0", 1)
-    assert "v0.1.0" in v010
-    assert "Tahap 6" not in v010
-    assert "Tinjauan mingguan" in v020
+    assert "**v0.1.0** (tenggat 9 Desember 2026)" in peta
+    assert "**v0.2.0** (tenggat 19 Desember 2026)" in peta
     assert "(opsional)" not in peta  # penanda lama sebelum milestone ada
+
+
+@pytest.mark.parametrize(
+    "fitur",
+    [
+        "Tahap 6: jendela Tinjauan mingguan",
+        "waktu penyelesaian",
+        "SQL view",
+        "Batalkan status selesai dan isi log",
+        "Kelas dasar form",
+        "cakupan tes",
+    ],
+)
+def test_v010_memuat_fitur_yang_sudah_ada_di_main_dan_tercentang(fitur):
+    v010, _ = peta_per_versi()
+    assert [centang for centang, teks in v010 if fitur in teks] == ["x"]
+
+
+def test_v010_menyisakan_empat_butir_yang_belum_selesai():
+    v010, _ = peta_per_versi()
+    belum = [teks for centang, teks in v010 if centang == " "]
+    assert len(belum) == 4
+    for teks, kata in zip(belum, ("Sprite", "tangkapan layar", "CHANGELOG", "Release v0.1.0"),
+                          strict=True):
+        assert kata in teks
+
+
+def test_v020_hanya_berisi_yang_belum_dikerjakan():
+    _, v020 = peta_per_versi()
+    assert v020 == [
+        (" ", "Opsi jalan otomatis saat Windows menyala"),
+        (" ", "Studi kasus portofolio"),
+    ]
 
 
 def test_peta_jalan_hanya_berisi_kotak_centang():
