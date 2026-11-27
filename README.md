@@ -343,6 +343,7 @@ Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG
 
 - [x] Opsi jalan otomatis saat Windows menyala
 - [ ] Studi kasus portofolio
+- [ ] GitHub Release v0.2.0
 
 ## Lisensi
 
