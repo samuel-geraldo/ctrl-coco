@@ -169,3 +169,14 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Catatan refleksi mingguan tidak dibuat:** tidak diminta kriteria selesai, dan menyimpannya butuh tabel baru serta migrasi skema. Catatan harian sudah ada.
 - **Pesan kosong** hanya bila database belum punya task atau log (`ada_data`, sama dengan Ringkasan). Bila hanya 7 hari terakhir yang kosong, angka 0 ditampilkan.
 - **Jendela** tidak modal dan hanya satu sekaligus, seperti Ringkasan (keduanya memakai `_buka_jendela_tunggal`). Angka dibaca saat jendela dibuka, tanpa refresh otomatis.
+
+## Jalan otomatis saat Windows menyala (#76)
+
+- **Kunci `Run` milik pengguna (`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), bukan folder Startup.** Satu nilai teks bernama `CtrlCoco`. Tidak butuh hak administrator, tidak ada berkas `.lnk` yang harus dibuat dan dibersihkan, dan membaca, menulis, serta menghapus hanya satu nilai. Pengguna tetap bisa mematikannya dari Pengaturan Windows atau Task Manager.
+- **Hanya dari `.exe`.** Dari sumber, perintahnya harus `python -m ctrlcoco` dengan `PYTHONPATH` dan venv yang benar; entri seperti itu gampang rusak saat folder atau venv berpindah. Jadi dari sumber item menu nonaktif (abu-abu, tidak bisa dipilih). Mematikan tetap diizinkan secara kode, supaya entri sisa dari `.exe` bisa dibersihkan.
+- **Perintah:** path `sys.executable` dalam tanda kutip, karena path bisa berspasi. Pada onefile PyInstaller, `sys.executable` menunjuk ke `CtrlCoco.exe` yang diluncurkan, bukan ke folder sementara.
+- **Centang berarti "CtrlCoco ini yang akan terbuka saat login".** Entri yang ada tetapi menunjuk ke path lain (misalnya `.exe` dipindah atau diganti) dianggap mati: item tidak bercentang, dan memilihnya menulis ulang entri ke path sekarang. Perbandingan path tidak peka huruf besar kecil, seperti Windows.
+- **Status dibaca dari registri setiap menu dibuka**, tidak disimpan di database atau variabel, supaya tidak bisa tidak sinkron dengan keadaan sebenarnya (alasan yang sama dengan streak).
+- **Logika di `autostart.py` tanpa Qt.** Registri dibungkus `RegistriRun`, dan `aktif`, `nyalakan`, `matikan` menerima objek pengganti. Tes memakai kamus di memori dan `winreg` palsu, jadi tidak ada tes yang menyentuh registri sungguhan.
+- **Error:** hanya `OSError` (izin ditolak, kebijakan komputer) yang ditangkap dan ditampilkan sebagai pesan; widget tetap berjalan. Registri yang tidak terbaca saat menu dibuka dianggap mati, menu tetap terbuka.
+- **Belum dibuktikan:** bahwa `.exe` benar-benar terbuka saat login berikutnya. Itu diperiksa manual di laptop pribadi (kriteria #76); tes otomatis hanya membuktikan isi entri.
