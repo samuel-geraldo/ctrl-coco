@@ -328,8 +328,15 @@ def _database_lama(tmp_path):
     return c
 
 
-def test_migrasi_mempertahankan_data_dan_menyalakan_check(tmp_path):
+@pytest.fixture
+def database_lama(tmp_path):
     c = _database_lama(tmp_path)
+    yield c
+    c.close()
+
+
+def test_migrasi_mempertahankan_data_dan_menyalakan_check(database_lama):
+    c = database_lama
     assert c.execute("PRAGMA user_version").fetchone()[0] == 0
 
     db.init_db(c)
@@ -355,15 +362,15 @@ def test_migrasi_mempertahankan_data_dan_menyalakan_check(tmp_path):
     assert c.execute("PRAGMA foreign_keys").fetchone()[0] == 1
 
 
-def test_migrasi_tidak_dijalankan_dua_kali(tmp_path):
-    c = _database_lama(tmp_path)
+def test_migrasi_tidak_dijalankan_dua_kali(database_lama):
+    c = database_lama
     db.init_db(c)
     db.init_db(c)
     assert c.execute("SELECT COUNT(*) FROM task").fetchone()[0] == 2
 
 
-def test_migrasi_berhenti_jika_ada_baris_rusak_dan_tidak_mengubah_apa_pun(tmp_path):
-    c = _database_lama(tmp_path)
+def test_migrasi_berhenti_jika_ada_baris_rusak_dan_tidak_mengubah_apa_pun(database_lama):
+    c = database_lama
     c.execute("INSERT INTO daily_log VALUES ('2026-11-5', 1, 1, NULL)")
     c.execute(
         "INSERT INTO task (area_id, title, deadline, created_at)"
@@ -426,13 +433,20 @@ def _database_v1(tmp_path):
     return c
 
 
+@pytest.fixture
+def database_v1(tmp_path):
+    c = _database_v1(tmp_path)
+    yield c
+    c.close()
+
+
 def _isi(c):
     """Seluruh isi database sebagai teks SQL, untuk memastikan tidak ada yang berubah."""
     return list(c.iterdump())
 
 
-def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(database_v1):
+    c = database_v1
     c.execute("DELETE FROM area WHERE id = 3")  # id 3 pernah dipakai; tidak boleh dipakai ulang
     c.commit()
 
@@ -465,16 +479,16 @@ def test_migrasi_v1_ke_v2_data_utuh_dan_aturan_nama_aktif(tmp_path):
     assert not any(n.endswith("_baru") for n in names)
 
 
-def test_migrasi_v1_dua_kali_tidak_mengubah_apa_pun(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_v1_dua_kali_tidak_mengubah_apa_pun(database_v1):
+    c = database_v1
     db.init_db(c)
     sesudah_pertama = _isi(c)
     db.init_db(c)
     assert _isi(c) == sesudah_pertama
 
 
-def test_migrasi_v1_berhenti_jika_nama_area_bentrok(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_v1_berhenti_jika_nama_area_bentrok(database_v1):
+    c = database_v1
     c.execute("INSERT INTO area (name) VALUES ('kuliah')")  # id 4; v1 masih membedakan huruf
     c.commit()
     sebelum = _isi(c)
@@ -489,8 +503,8 @@ def test_migrasi_v1_berhenti_jika_nama_area_bentrok(tmp_path):
     assert c.execute("PRAGMA foreign_keys").fetchone()[0] == 1
 
 
-def test_migrasi_v1_berhenti_jika_ada_nama_atau_judul_kosong(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_v1_berhenti_jika_ada_nama_atau_judul_kosong(database_v1):
+    c = database_v1
     nama, judul = "  ", "\t"
     c.execute("INSERT INTO area (name) VALUES (?)", (nama,))  # id 4
     c.execute("INSERT INTO task (area_id, title, created_at) VALUES (1, ?, 'x')", (judul,))  # id 3
@@ -507,8 +521,8 @@ def test_migrasi_v1_berhenti_jika_ada_nama_atau_judul_kosong(tmp_path):
     assert _isi(c) == sebelum
 
 
-def test_migrasi_v0_dengan_tanggal_rusak_dan_nama_bentrok_satu_pesan(tmp_path):
-    c = _database_lama(tmp_path)
+def test_migrasi_v0_dengan_tanggal_rusak_dan_nama_bentrok_satu_pesan(database_lama):
+    c = database_lama
     c.execute("INSERT INTO area (name) VALUES ('KULIAH')")  # id 2
     c.execute("INSERT INTO daily_log VALUES ('2026-11-5', 1, 1, NULL)")
     c.commit()
@@ -525,8 +539,8 @@ def test_migrasi_v0_dengan_tanggal_rusak_dan_nama_bentrok_satu_pesan(tmp_path):
     assert _isi(c) == sebelum
 
 
-def test_migrasi_membuang_spasi_di_awal_dan_akhir_nama_lama(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_membuang_spasi_di_awal_dan_akhir_nama_lama(database_v1):
+    c = database_v1
     c.execute("UPDATE area SET name = ' Kuliah\t' WHERE id = 1")
     c.execute("UPDATE task SET title = '  Laporan\r\n' WHERE id = 1")
     c.commit()
@@ -537,8 +551,8 @@ def test_migrasi_membuang_spasi_di_awal_dan_akhir_nama_lama(tmp_path):
     assert c.execute("SELECT title FROM task WHERE id = 1").fetchone()[0] == "Laporan"
 
 
-def test_migrasi_nama_bentrok_setelah_spasi_dibuang(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_nama_bentrok_setelah_spasi_dibuang(database_v1):
+    c = database_v1
     c.execute("INSERT INTO area (name) VALUES (' kuliah')")  # id 4
     c.commit()
     sebelum = _isi(c)
@@ -551,8 +565,8 @@ def test_migrasi_nama_bentrok_setelah_spasi_dibuang(tmp_path):
     assert _isi(c) == sebelum
 
 
-def test_migrasi_dibatalkan_jika_ada_task_tanpa_area(tmp_path):
-    c = _database_v1(tmp_path)
+def test_migrasi_dibatalkan_jika_ada_task_tanpa_area(database_v1):
+    c = database_v1
     c.execute("PRAGMA foreign_keys = OFF")  # meniru edit manual yang melewati kunci tamu
     c.execute("INSERT INTO task (area_id, title, created_at) VALUES (99, 'Yatim', 'x')")  # id 3
     c.commit()
