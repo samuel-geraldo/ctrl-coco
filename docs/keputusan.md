@@ -145,3 +145,10 @@ Modul `src/ctrlcoco/analytics.py` (tanpa Qt) menjadi dasar jendela Ringkasan. Se
 - **Mengganti tanggal memuat ulang isian** dari `get_daily_log`; perubahan yang belum disimpan dibuang tanpa konfirmasi. Isian dikosongkan lebih dulu, dan bila log gagal dibaca tombol Simpan dinonaktifkan, supaya isi tanggal lain tidak tertulis ke tanggal terpilih.
 - **Judul jendela** "Log hari ini (tanggal)" untuk hari ini dan "Log tanggal (tanggal)" untuk hari lain. Label menu klik kanan tidak diubah.
 - **Perayaan tidak berubah:** hanya log hari ini yang baru menjadi valid yang dirayakan. Mengisi tanggal lampau tidak membuat Coco melompat, walaupun streak melewati tonggak.
+
+## Cakupan tes di CI (#68)
+
+- **`pytest-cov` dikunci di `requirements.txt`**; `coverage`, dependensinya, tidak dikunci tersendiri.
+- **CI menjalankan `pytest --cov=ctrlcoco --cov-report=term-missing`**, jadi persentase per berkas dan baris yang belum dites terlihat di log job. Tanpa Codecov atau layanan luar lain.
+- **Tanpa ambang minimum:** cakupan tidak menggagalkan CI. Ambang bisa menyusul setelah angka awal diketahui.
+- **Badge cakupan belum dikerjakan**, jadi #68 tetap terbuka. Badge buatan workflow sendiri butuh branch tambahan dan izin tulis untuk `GITHUB_TOKEN`; untuk sekarang itu tidak diambil.
