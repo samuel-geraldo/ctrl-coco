@@ -174,6 +174,15 @@ python -m pytest
 
 Tes widget berjalan tanpa layar (`QT_QPA_PLATFORM=offscreen`). GitHub Actions menjalankan seluruh tes di Windows dengan Python 3.14 pada setiap pull request dan setiap push ke `main`.
 
+### Cakupan tes
+
+```bat
+set PYTHONPATH=src
+python -m pytest --cov=ctrlcoco --cov-report=term-missing
+```
+
+Di akhir keluaran tampil tabel per berkas: `Cover` adalah persentase baris yang dijalankan tes, `Missing` nomor baris yang belum pernah dijalankan, dan `TOTAL` angka keseluruhan. CI menjalankan perintah yang sama, jadi tabelnya juga ada di log job `tests`. Tidak ada ambang minimum: cakupan rendah tidak menggagalkan CI.
+
 ### Membuat gambar README
 
 Gambar widget dan jendela Ringkasan di README dibuat oleh skrip, bukan dipotret manual, jadi bisa dibuat ulang kapan saja dan tidak memuat data pribadi. Dari akar repo:

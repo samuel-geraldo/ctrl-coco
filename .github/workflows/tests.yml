@@ -23,4 +23,5 @@ jobs:
           python-version: "3.14"
       - run: pip install -r requirements.txt
       - run: ruff check .
-      - run: pytest
+      # Cakupan tiap berkas dan baris yang belum dites tampil di log; tanpa ambang minimum.
+      - run: pytest --cov=ctrlcoco --cov-report=term-missing
