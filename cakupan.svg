@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="106" height="20" role="img" aria-label="cakupan 99%">
+  <rect width="62" height="20" fill="#555"/>
+  <rect x="62" width="44" height="20" fill="#007ec6"/>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11">
+    <text x="31" y="14">cakupan</text>
+    <text x="84" y="14">99%</text>
+  </g>
+</svg>
