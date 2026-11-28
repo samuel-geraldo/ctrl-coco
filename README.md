@@ -318,7 +318,7 @@ Satu fitur = satu issue = satu pull request (`Closes #N`). Perubahan di-review l
 
 Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG.md](CHANGELOG.md).
 
-**v0.1.0** (tenggat 2 Desember 2026)
+**v0.1.0** (tenggat 9 Desember 2026)
 
 - [x] Tahap 1 sampai 4: ERD, inti data, streak, widget, kondisi Coco, dan animasi
 - [x] Tahap 5: form tambah task, log harian, dan selesaikan task
@@ -327,22 +327,23 @@ Mengikuti milestone di GitHub. Perubahan yang sudah masuk tercatat di [CHANGELOG
 - [x] Ekspor CSV
 - [x] Data contoh 60 hari, lint di CI, dependensi terkunci, dan LICENSE MIT
 - [x] Lokasi aset yang benar di `.exe` dan build `.exe` lewat GitHub Actions
-- [ ] Sprite pixel art Coco yang asli (senang, waspada, tidur)
-- [x] Skrip tangkapan layar otomatis
-- [ ] README bergambar
-- [ ] GitHub Release v0.1.0 dengan `.exe`
-
-**v0.2.0** (tenggat 19 Desember 2026)
-
 - [x] Tahap 6: jendela Tinjauan mingguan
 - [x] Analitik: waktu penyelesaian task per area dan produktivitas per hari dalam seminggu
 - [x] SQL view untuk statistik task
 - [x] Batalkan status selesai dan isi log untuk tanggal selain hari ini
 - [x] Kelas dasar form untuk tiga form
 - [x] Laporan cakupan tes dan badge di README
+- [x] Skrip tangkapan layar otomatis
+- [ ] Sprite pixel art Coco yang asli (senang, waspada, tidur)
+- [ ] README bergambar
+- [ ] CHANGELOG dengan tanggal rilis
+- [ ] GitHub Release v0.1.0 dengan `.exe`
+
+**v0.2.0** (tenggat 19 Desember 2026)
+
 - [x] Opsi jalan otomatis saat Windows menyala
-- [ ] CHANGELOG dan studi kasus
-- [ ] Rilis v0.2.0
+- [ ] Studi kasus portofolio
+- [ ] GitHub Release v0.2.0
 
 ## Lisensi
 
